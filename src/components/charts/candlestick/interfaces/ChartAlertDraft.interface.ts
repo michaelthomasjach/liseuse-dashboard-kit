@@ -27,6 +27,10 @@ export interface ChartAlertDraft {
   sound: string;
   message: string;
   expiresAt: Date | null;
+  /** « Notifier sur mon téléphone » coché dans la fenêtre d'alerte (seulement quand l'hôte propose l'option, voir
+   *  `CandlestickChartProps.alertPhoneNotification`) : à l'hôte d'envoyer la notification quand l'alerte se déclenche.
+   *  Absent : l'option n'était pas proposée. */
+  notifyPhone?: boolean;
 }
 
 /** A persisted alert — what `ChartAlertDraft` becomes once the caller has assigned it a stable

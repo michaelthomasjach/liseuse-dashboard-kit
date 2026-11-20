@@ -22,6 +22,7 @@ import {
 } from "../../../icons";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { ChartAlertCrossing, ChartAlertDraft, ChartAlert } from "../interfaces/ChartAlertDraft.interface";
+import type { AlertPhoneNotificationOption } from "../interfaces/CandlestickChartProps.interface";
 import { FIBONACCI_LEVELS, FIBONACCI_EXTENSION_LEVELS } from "../drawingCatalog";
 
 // Les sons par défaut sont ceux que `playAlertSound` sait jouer (voir alertSounds.ts).
@@ -172,7 +173,11 @@ export interface AlertCreateModalProps {
   editingAlert?: ChartAlert | null;
   onSave?: (id: string, alert: ChartAlertDraft) => void;
   onDeleteAlert?: (id: string) => void;
+  /** Case « Notifier sur mon téléphone » (voir `CandlestickChartProps.alertPhoneNotification`) ; absente sans elle. */
+  phoneNotification?: AlertPhoneNotificationOption;
 }
+
+const PHONE_UNAVAILABLE_MESSAGE = "Renseignez d'abord votre numéro de téléphone dans les réglages de votre compte pour recevoir vos alertes sur votre téléphone.";
 
 /** "Create alert" modal opened from the floating drawing toolbar's own bell button, an
  *  indicator's own legend row, or `AlertListModal`'s own "Nouvelle alerte"/edit-pencil — modeled
@@ -200,6 +205,7 @@ export function AlertCreateModal({
   editingAlert,
   onSave,
   onDeleteAlert,
+  phoneNotification,
 }: AlertCreateModalProps) {
   const fibLevels = fibonacciExtension ? FIBONACCI_EXTENSION_LEVELS : FIBONACCI_LEVELS;
   const defaultCrossing: ChartAlertCrossing = isFibonacciTarget ? { kind: "fibLevel", level: fibLevels[0] } : { kind: "crossing" };
@@ -215,6 +221,10 @@ export function AlertCreateModal({
   const hasValue = valueText.trim() !== "" && Number.isFinite(parsedValue);
   const [hasExpiration, setHasExpiration] = useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
+  const [notifyPhone, setNotifyPhone] = useState(false);
+  // Clic sur la case grisée (téléphone pas configuré) : l'explication s'affiche sous la case.
+  const [phoneHint, setPhoneHint] = useState(false);
+  const phoneAvailable = phoneNotification?.available === true;
   // Stops the message field's own auto-templating (see the effect below) once the user has typed
   // something themselves — same "user input permanently wins" reasoning the floating toolbar's
   // own theme-color sync already uses.
@@ -234,6 +244,7 @@ export function AlertCreateModal({
       setHasExpiration(editingAlert.expiresAt !== null);
       setExpiresAt(editingAlert.expiresAt);
       setValueText(editingAlert.value !== undefined ? formatLevel(editingAlert.value) : "");
+      setNotifyPhone(editingAlert.notifyPhone === true);
       messageCustomizedRef.current = true;
     } else {
       setConditionIndicatorId(initialConditionIndicatorId ?? "price");
@@ -243,8 +254,10 @@ export function AlertCreateModal({
       setHasExpiration(false);
       setExpiresAt(null);
       setValueText(initialValue !== undefined && Number.isFinite(initialValue) ? formatLevel(initialValue) : "");
+      setNotifyPhone(false);
       messageCustomizedRef.current = false;
     }
+    setPhoneHint(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editingAlert]);
 
@@ -274,6 +287,7 @@ export function AlertCreateModal({
       sound,
       message,
       expiresAt: hasExpiration ? expiresAt : null,
+      ...(phoneNotification ? { notifyPhone: phoneAvailable && notifyPhone } : {}),
     };
   }
 
@@ -388,6 +402,42 @@ export function AlertCreateModal({
             setMessage(e.target.value);
           }}
         />
+
+        {phoneNotification && (
+          <div className="lq-alert-modal__phone">
+            {/* Grisée tant que le téléphone n'est pas configuré : un clic dit pourquoi au lieu de ne rien faire. */}
+            <div
+              className="lq-alert-modal__phone-option"
+              onClick={() => {
+                if (!phoneAvailable) setPhoneHint(true);
+              }}
+            >
+              <Checkbox
+                checked={phoneAvailable && notifyPhone}
+                onChange={setNotifyPhone}
+                disabled={!phoneAvailable}
+                label={phoneNotification.label ?? "Notifier sur mon téléphone"}
+              />
+            </div>
+            {!phoneAvailable && phoneHint && (
+              <div className="lq-alert-modal__phone-hint" role="status">
+                <span>{phoneNotification.unavailableMessage ?? PHONE_UNAVAILABLE_MESSAGE}</span>
+                {phoneNotification.onConfigure && (
+                  <button
+                    type="button"
+                    className="lq-chart__reset-button lq-alert-modal__phone-configure"
+                    onClick={() => {
+                      onClose();
+                      phoneNotification.onConfigure?.();
+                    }}
+                  >
+                    {phoneNotification.configureLabel ?? "Ouvrir les réglages"}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <Checkbox checked={hasExpiration} onChange={setHasExpiration} label="Date d'expiration" />
         {hasExpiration && <DatePicker value={expiresAt} onChange={setExpiresAt} placeholder="Aucune expiration" minDate={new Date()} />}

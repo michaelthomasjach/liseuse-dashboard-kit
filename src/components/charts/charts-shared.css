@@ -1211,6 +1211,38 @@ button.lq-chart__legend-item {
 
 /* "Son" field + its play button — flex-end so the button lines up with the Select's own control,
    not its label sitting above. */
+/* « Notifier sur mon téléphone » : grisée sans téléphone configuré, cliquable quand même pour afficher l'explication. */
+.lq-alert-modal__phone {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lq-alert-modal__phone-option {
+  display: flex;
+}
+.lq-alert-modal__phone-option .lq-checkbox--disabled {
+  cursor: help;
+}
+.lq-alert-modal__phone-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--lq-color-text);
+  background: var(--lq-color-hover);
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm);
+}
+.lq-alert-modal__phone-hint > span {
+  flex: 1 1 220px;
+}
+.lq-alert-modal__phone-configure {
+  flex: none;
+}
+
 .lq-alert-modal__sound-row {
   display: flex;
   align-items: flex-end;

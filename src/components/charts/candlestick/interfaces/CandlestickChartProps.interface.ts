@@ -26,6 +26,20 @@ import type { ChartVisibleRange } from "./ChartVisibleRange.interface";
 import type { AiSend, AiServerTool } from "../ai/interfaces/AiMessage.interface";
 import type { ScriptRunOutput } from "../scripting/interfaces/ScriptRunOutput.interface";
 
+/** Option « Notifier sur mon téléphone » de la fenêtre d'alerte (voir `CandlestickChartProps.alertPhoneNotification`). */
+export interface AlertPhoneNotificationOption {
+  /** Le téléphone est configuré : la case est utilisable. */
+  available: boolean;
+  /** Libellé de la case (défaut : « Notifier sur mon téléphone »). */
+  label?: string;
+  /** Message montré quand on clique sur la case grisée (défaut : renseigner d'abord son numéro dans les réglages). */
+  unavailableMessage?: string;
+  /** Ouvre les réglages où configurer le téléphone ; montre un bouton sous le message. */
+  onConfigure?: () => void;
+  /** Libellé de ce bouton (défaut : « Ouvrir les réglages »). */
+  configureLabel?: string;
+}
+
 export interface CandlestickChartProps {
   /** The candles to draw, oldest first. This library has no data source of its own — the app fetches them
    *  and keeps them up to date; every other data prop here (`events`, `fundamentals`,
@@ -235,6 +249,12 @@ export interface CandlestickChartProps {
    *  play button next to it only while this is provided (the library ships no audio assets of
    *  its own, see AlertCreateModal's own doc, so there's nothing to play without it). */
   onPlaySound?: (value: string) => void;
+  /** Case « Notifier sur mon téléphone » de la fenêtre d'alerte (création et modification) ; absente sans cette prop.
+   *  `available` : le téléphone de l'utilisateur est configuré chez l'hôte. Sinon la case est grisée et un clic dessus
+   *  affiche `unavailableMessage` (par défaut : renseigner d'abord son numéro dans les réglages du compte), avec un
+   *  bouton `configureLabel` quand `onConfigure` est fourni (ouvrir ces réglages). La case cochée donne
+   *  `notifyPhone: true` dans l'alerte remise à `onCreateAlert` / `onUpdateAlert` : l'envoi revient à l'hôte. */
+  alertPhoneNotification?: AlertPhoneNotificationOption;
   /** Shows a header button that opens the technical-indicator picker (SMA, EMA, WMA…) and the
    *  active-indicator legend in the plot's top-left corner. Default false. */
   showIndicators?: boolean;

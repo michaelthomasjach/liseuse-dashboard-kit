@@ -212,7 +212,7 @@ function CandlestickChartBody({
   defaultVolumePaneState,
   onVolumePaneStateChange,
   onTimeframeScopedChange,
-  alerts, onCreateAlert, onUpdateAlert, onDeleteAlert, alertSoundOptions, onPlaySound,
+  alerts, onCreateAlert, onUpdateAlert, onDeleteAlert, alertSoundOptions, onPlaySound, alertPhoneNotification,
   showIndicators = false,
   defaultIndicators,
   showCustomToolbars = true, defaultCustomToolbars, onCustomToolbarsChange,
@@ -3458,6 +3458,7 @@ function CandlestickChartBody({
         {...alertFlow.modalProps}
         overlayIndicators={overlayIndicators} paneIndicators={ownPaneIndicators} indicatorLabel={indicatorLabel}
         soundOptions={alertSoundOptions} onCreate={onCreateAlert} onPlaySound={onPlaySound ?? playAlertSound} onSave={onUpdateAlert} onDeleteAlert={onDeleteAlert}
+        phoneNotification={alertPhoneNotification}
       />
       </div>
 

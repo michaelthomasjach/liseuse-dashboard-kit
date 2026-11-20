@@ -65,6 +65,13 @@ interface InputDropdownBaseProps<T extends string = string> {
   labelPosition?: LqFieldLabelPosition;
   /** Leading icon inside the control (e.g. a magnifier). */
   leadingIcon?: ReactNode;
+  /** Saisie libre (liste déroulante saisissable) : le champ montre ce texte, que le parent tient à jour depuis
+   *  `onInputChange`, et la liste ne fait que proposer des valeurs (choisir une option appelle `onChange` : au parent
+   *  de recopier son libellé). La flèche (ou ↓) ouvre la liste, que la saisie filtre ensuite ; ni le focus ni la frappe
+   *  ne l'ouvrent, et Entrée
+   *  sans option désignée aux flèches laisse passer la touche (le formulaire autour est soumis). Un nom à donner,
+   *  nouveau ou choisi parmi les existants, par exemple. */
+  inputValue?: string;
 }
 
 export type InputDropdownProps<T extends string = string> = InputDropdownBaseProps<T> & (InputDropdownSingle<T> | InputDropdownMultiple<T>);
@@ -119,8 +126,10 @@ export function InputDropdown<T extends string = string>(props: InputDropdownPro
   maxResults = 200,
   leadingIcon,
   labelPosition: ownLabelPosition,
+  inputValue,
   } = props;
   const multiple = props.multiple === true;
+  const freeText = inputValue !== undefined && !multiple;
   const values: T[] = props.multiple === true ? props.value : props.value === null ? [] : [props.value];
   const value = values[0] ?? null;
   const isSelected = (v: T): boolean => values.includes(v);
@@ -146,10 +155,15 @@ export function InputDropdown<T extends string = string>(props: InputDropdownPro
   // L'option active reste sur la sélection à l'ouverture, sinon sur la première option disponible.
   useEffect(() => {
     if (!open) return;
+    // Saisie libre : aucune option désignée tant que les flèches n'en choisissent pas une (Entrée garde le texte tapé).
+    if (freeText) {
+      setActive(-1);
+      return;
+    }
     const sel = multiple ? -1 : visible.findIndex((o) => o.value === value);
     const first = visible.findIndex((o) => !o.disabled);
     setActive(!typing && sel >= 0 ? sel : Math.max(0, first));
-  }, [open, visible, value, typing, multiple]);
+  }, [open, visible, value, typing, multiple, freeText]);
 
   useEffect(() => {
     if (!open) return;
@@ -175,7 +189,8 @@ export function InputDropdown<T extends string = string>(props: InputDropdownPro
 
   const move = (dir: 1 | -1): void => {
     if (visible.length === 0) return;
-    let i = active;
+    // Aucune option désignée (saisie libre) : la flèche du bas part de la première, celle du haut de la dernière.
+    let i = active < 0 ? (dir === 1 ? -1 : visible.length) : active;
     for (let n = 0; n < visible.length; n++) {
       i = (i + dir + visible.length) % visible.length;
       if (!visible[i]?.disabled) break;
@@ -192,6 +207,8 @@ export function InputDropdown<T extends string = string>(props: InputDropdownPro
       if (open && visible[active]) {
         e.preventDefault();
         pick(visible[active] as InputDropdownOption<T>);
+      } else if (freeText && open) {
+        close();
       }
     } else if (e.key === "Escape") {
       if (open) {
@@ -203,7 +220,7 @@ export function InputDropdown<T extends string = string>(props: InputDropdownPro
     }
   };
 
-  const text = typing ? query : multiple ? summary : (selected?.label ?? "");
+  const text = freeText ? inputValue : typing ? query : multiple ? summary : (selected?.label ?? "");
   const inside = useFieldLabelPosition(ownLabelPosition) === "inside" && Boolean(label);
   const input = (
     <input
@@ -220,16 +237,17 @@ export function InputDropdown<T extends string = string>(props: InputDropdownPro
       autoComplete="off"
       spellCheck={false}
       disabled={disabled}
-      placeholder={selected && !typing ? selected.label : multiple && summary && !typing ? summary : placeholder}
+      placeholder={freeText ? placeholder : selected && !typing ? selected.label : multiple && summary && !typing ? summary : placeholder}
       value={text}
       onFocus={(e) => {
-        setOpen(true);
+        if (!freeText) setOpen(true);
         e.currentTarget.select();
       }}
       onChange={(e) => {
         setTyping(true);
         setQuery(e.target.value);
-        setOpen(true);
+        // Saisie libre : taper un nom n'ouvre pas la liste (elle cacherait l'aide sous le champ) ; ouverte, elle se filtre.
+        if (!freeText) setOpen(true);
         onInputChange?.(e.target.value);
       }}
       onKeyDown={onKeyDown}
@@ -255,9 +273,18 @@ export function InputDropdown<T extends string = string>(props: InputDropdownPro
         ]
           .filter(Boolean)
           .join(" ")}
-        onClick={() => {
+        onClick={(e) => {
           if (disabled) return;
           inputRef.current?.focus();
+          // Saisie libre : un clic dans le texte y place le curseur ; la flèche (ou le reste du cadre) ouvre et ferme la liste.
+          if (freeText) {
+            if (e.target !== inputRef.current) {
+              // La flèche montre tous les noms, quel que soit le texte tapé.
+              setTyping(false);
+              setOpen((o) => !o);
+            }
+            return;
+          }
           setOpen(true);
         }}
       >

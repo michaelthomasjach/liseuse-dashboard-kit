@@ -125,6 +125,31 @@ export const Multiple: Story = {
   },
 };
 
+const STYLE_NAMES: InputDropdownOption[] = ["Range", "Résistance", "Support", "Volatilité attendue"].map((n) => ({ value: n, label: n }));
+
+export const FreeText: Story = {
+  name: "Saisie libre (nom nouveau ou existant)",
+  render: () => {
+    const [name, setName] = useState("");
+    const existing = STYLE_NAMES.find((o) => o.label.toLowerCase() === name.trim().toLowerCase());
+    return (
+      <div style={{ maxWidth: 320 }}>
+        <InputDropdown
+          label="Nom du style"
+          placeholder="Nouveau nom de style"
+          inputValue={name}
+          onInputChange={setName}
+          options={STYLE_NAMES}
+          value={existing?.value ?? null}
+          onChange={(_v, o) => setName(o.label)}
+          emptyMessage="Nouveau nom : le style sera créé"
+          helperText={existing ? `« ${existing.label} » existe déjà : il sera remplacé.` : "Tapez un nom, ou ouvrez la flèche pour reprendre un nom existant."}
+        />
+      </div>
+    );
+  },
+};
+
 export const Sizes: Story = {
   name: "Tailles (small / normal)",
   render: () => {

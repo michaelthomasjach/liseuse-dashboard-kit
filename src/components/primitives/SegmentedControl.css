@@ -66,3 +66,21 @@
   padding-top: 0;
   padding-bottom: 0;
 }
+
+/* Pastille après le libellé d'une option (« dev », « bêta »…) : petite, en capitales, qui ne change pas la hauteur. */
+.lq-segmented__badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 0 5px;
+  height: 15px;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, var(--lq-color-accent) 18%, transparent);
+  color: var(--lq-color-accent);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  vertical-align: middle;
+}

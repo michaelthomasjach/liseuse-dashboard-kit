@@ -9,6 +9,8 @@ export interface SegmentedControlOption<T extends string> {
   ariaLabel?: string;
   /** Infobulle native de l'option. */
   title?: string;
+  /** Petite pastille après le libellé (« dev », « bêta », « nouveau »…), pour signaler un état de l'option. */
+  badge?: string;
 }
 
 export interface SegmentedControlProps<T extends string> {
@@ -70,6 +72,7 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(opt.value)}
           >
             {opt.label}
+            {opt.badge && <span className="lq-segmented__badge">{opt.badge}</span>}
           </button>
         ))}
       </div>

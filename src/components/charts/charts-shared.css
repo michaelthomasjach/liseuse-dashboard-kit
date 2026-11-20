@@ -1354,6 +1354,30 @@ button.lq-chart__legend-item {
   cursor: grabbing;
 }
 
+/* Poignées d'un canal : le curseur annonce le geste — vertical pour le milieu d'une ligne (elle monte
+   ou descend parallèlement), diagonal pour un coin (glisser libre). Gardé pendant le glisser. */
+.lq-chart__drawing-handle-hitarea--ns,
+.lq-chart__drawing-handle-hitarea--ns:active {
+  cursor: ns-resize;
+}
+
+.lq-chart__drawing-handle-hitarea--nwse,
+.lq-chart__drawing-handle-hitarea--nwse:active {
+  cursor: nwse-resize;
+}
+
+.lq-chart__drawing-handle-hitarea--nesw,
+.lq-chart__drawing-handle-hitarea--nesw:active {
+  cursor: nesw-resize;
+}
+
+/* Tous les dessins verrouillés (classe posée sur le <svg> par useDrawingInteractions) : une poignée ne
+   fait plus que sélectionner, donc la main, jamais un curseur de redimensionnement. */
+.lq-chart--drawings-locked .lq-chart__drawing-handle-hitarea,
+.lq-chart--drawings-locked .lq-chart__drawing-handle-hitarea:active {
+  cursor: pointer;
+}
+
 @media (pointer: coarse) {
   .lq-chart__drawing-handle-hitarea {
     stroke-width: 26;

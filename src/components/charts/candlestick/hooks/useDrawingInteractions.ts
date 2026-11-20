@@ -14,7 +14,7 @@ import { drawingTouchesRect, selectionRectBetween, type SelectionRect } from "..
 import { distanceToIndicator } from "../indicatorHitTest";
 import type { HitTestContext } from "../drawingHitTest";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
-import { useAxisHandleDrag } from "./useAxisHandleDrag";
+import { useAxisHandleDrag, type ChannelHandle } from "./useAxisHandleDrag";
 import { PanVelocityTracker, startPanInertia, type PanInertiaHandle } from "../../internal/panInertia";
 import { placeDrawingOnClick, type DrawingPlacementContext } from "./placeDrawingOnClick";
 import { DRAWING_HIT_DISTANCE, CLICK_DRAG_THRESHOLD, TABLE_DEFAULT_ROWS, TABLE_DEFAULT_COLS, TABLE_BORDER_HIT_MARGIN } from "../constants";
@@ -367,6 +367,12 @@ export function useDrawingInteractions({
     },
     []
   );
+  // Tous les dessins verrouillés : les poignées ne déplacent plus rien, donc plus de curseur de
+  // redimensionnement dessus (voir .lq-chart--drawings-locked dans charts-shared.css). Posé sur le
+  // <svg> directement, comme le curseur du tracé (overlayElRef), sans prop de plus à faire descendre.
+  useEffect(() => {
+    zoomRef.current?.ownerSVGElement?.classList.toggle("lq-chart--drawings-locked", drawingsLocked);
+  }, [drawingsLocked, zoomRef]);
 
   /** Point d'ancrage du segment en cours de tracé (le dernier point posé), pour la contrainte d'angle.
    *  Aucun pour le 3ᵉ clic d'un canal : il fixe un écart, pas une direction. */
@@ -605,10 +611,14 @@ export function useDrawingInteractions({
     paneScaleAndOffset,
     setSelectedDrawingId,
     setSelectedIndicatorId,
+    magnetSnapPrice,
+    indexForDate,
+    toDataPoint,
   });
-  // Ctrl + clic sur la poignée unique d'un dessin (horizontale, verticale, demi-droite, marqueur…) : sélection, pas glisser.
-  function handleAxisHandlePointerDown(drawingId: string) {
-    const inner = axisHandlePointerDown(drawingId);
+  // Ctrl + clic sur la poignée unique d'un dessin (horizontale, verticale, demi-droite, marqueur…) ou sur
+  // une poignée propre d'un canal (milieux, coins de la ligne 2) : sélection, pas glisser.
+  function handleAxisHandlePointerDown(drawingId: string, channelHandle?: ChannelHandle) {
+    const inner = axisHandlePointerDown(drawingId, channelHandle);
     return (e: React.PointerEvent<SVGCircleElement>) => {
       if (isSelectGesture(e)) {
         e.stopPropagation();

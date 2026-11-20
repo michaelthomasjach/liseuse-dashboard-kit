@@ -7,6 +7,7 @@ import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface"
 import type { DataPoint } from "../interfaces/DataPoint.interface";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import type { ChartEvent } from "../interfaces/ChartEvent.interface";
+import type { ChannelHandle } from "../hooks/useAxisHandleDrag";
 import { allPointsOf, isOffsetPriceLabel, snapPixel } from "../drawingGeometry";
 import { paneValueFormatter } from "../indicatorCatalog";
 import { compactAxisTickFormat } from "../formatting";
@@ -105,7 +106,8 @@ export interface ChartCanvasOverlayProps {
   selectedDrawingId?: string | null;
   indexForDate: (date: Date) => number;
   pixelYForDrawing: (dr: TrendLineDrawing) => number;
-  handleAxisHandlePointerDown: (drawingId: string) => (e: React.PointerEvent<SVGCircleElement>) => void;
+  /** `channelHandle` : laquelle des poignées propres d'un canal (milieux, coins de la ligne 2) — voir ChannelHandle. */
+  handleAxisHandlePointerDown: (drawingId: string, channelHandle?: ChannelHandle) => (e: React.PointerEvent<SVGCircleElement>) => void;
   handleAxisHandlePointerMove: (e: React.PointerEvent<SVGCircleElement>) => void;
   handleAxisHandlePointerUp: (e: React.PointerEvent<SVGCircleElement>) => void;
   handleEndpointPointerDown: (drawingId: string, pointIndex: number) => (e: React.PointerEvent<SVGCircleElement>) => void;
@@ -146,6 +148,14 @@ export interface ChartCanvasOverlayProps {
   };
 }
 
+type HandleCursor = "ns" | "nwse" | "nesw";
+
+/** Curseur diagonal d'un coin de canal : ↖↘ pour le coin haut-gauche ou bas-droit, ↗↙ sinon. `otherEndX` est
+ *  l'autre extrémité de la même ligne, `otherLineY` l'autre ligne à la même extrémité (en pixels). */
+function cornerCursor(x: number, y: number, otherEndX: number, otherLineY: number): HandleCursor {
+  return x <= otherEndX === y <= otherLineY ? "nwse" : "nesw";
+}
+
 /** A drawing's own draggable point — the small always-visible accent-ring dot every handle site
  *  below used to render directly as a single `r=5` circle, now split into that same visible dot
  *  (`pointer-events: none`, purely decorative) plus a same-position invisible sibling that alone
@@ -161,6 +171,7 @@ function DrawingHandle({
   onPointerMove,
   onPointerUp,
   color,
+  cursor,
 }: {
   cx: number;
   cy: number;
@@ -169,10 +180,13 @@ function DrawingHandle({
   onPointerUp: (e: React.PointerEvent<SVGCircleElement>) => void;
   /** Couleur du dessin : l'anneau de la poignée la reprend (sans elle, la couleur d'accent du thème). */
   color?: string;
+  /** Curseur du geste de la poignée (canaux) : vertical pour un milieu, diagonal pour un coin. Absent : la main. */
+  cursor?: HandleCursor;
 }) {
+  const hitClass = cursor ? `lq-chart__drawing-handle-hitarea lq-chart__drawing-handle-hitarea--${cursor}` : "lq-chart__drawing-handle-hitarea";
   return (
     <>
-      <circle className="lq-chart__drawing-handle-hitarea" cx={cx} cy={cy} r={5} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+      <circle className={hitClass} cx={cx} cy={cy} r={5} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
       <circle className="lq-chart__drawing-handle" cx={cx} cy={cy} r={5} style={color ? { stroke: color } : undefined} />
     </>
   );
@@ -658,30 +672,76 @@ export function ChartCanvasOverlay({
               // per-tool-specific handle code needed beyond channel's own 3rd (below), which
               // adjusts channelOffset instead of a raw point.
               const points = allPointsOf(dr);
-              const x1 = zoomedXScale(indexForDate(dr.x1) + 0.5);
-              const x2 = zoomedXScale(indexForDate(dr.x2) + 0.5);
+              const screen = points.map((p) => ({ x: zoomedXScale(indexForDate(p.x) + 0.5), y: zoomedPriceScale(p.y) }));
+              // Canaux : 6 poignées — les 4 coins (curseur diagonal, glisser libre) et le milieu de chaque
+              // ligne (curseur vertical, la ligne monte ou descend parallèlement ; voir ChannelHandle).
+              // "channel" n'enregistre que la ligne 1 : les coins de sa ligne 2 se déduisent du décalage.
+              // Un dessin verrouillé garde ses poignées (clic = sélection) mais sans curseur de geste.
+              const isChannel = dr.lineType === "channel";
+              const isDisjoint = dr.lineType === "disjointChannel" && screen.length === 4;
+              const gestures = (isChannel || isDisjoint) && !dr.locked;
+              const offsetPx = isChannel ? zoomedPriceScale(dr.y1 + (dr.channelOffset ?? 0)) - zoomedPriceScale(dr.y1) : 0;
+              // Autre extrémité de la même ligne, et coin de l'autre ligne à la même extrémité, par index de point.
+              const disjointPartner = [
+                [1, 3],
+                [0, 2],
+                [3, 1],
+                [2, 0],
+              ];
+              const cursorOf = (i: number): HandleCursor | undefined => {
+                if (!gestures) return undefined;
+                if (isChannel) return cornerCursor(screen[i].x, screen[i].y, screen[1 - i].x, screen[i].y + offsetPx);
+                const [sameLine, otherLine] = disjointPartner[i];
+                return cornerCursor(screen[i].x, screen[i].y, screen[sameLine].x, screen[otherLine].y);
+              };
+              const line2 = isChannel
+                ? [
+                    { x: screen[0].x, y: screen[0].y + offsetPx },
+                    { x: screen[1].x, y: screen[1].y + offsetPx },
+                  ]
+                : isDisjoint
+                  ? [screen[3], screen[2]]
+                  : [];
+              const channelHandle = (handle: ChannelHandle, cx: number, cy: number, cursor: HandleCursor | undefined) => (
+                <DrawingHandle
+                  color={dr.color}
+                  key={handle}
+                  cx={cx}
+                  cy={cy}
+                  cursor={cursor}
+                  onPointerDown={handleAxisHandlePointerDown(dr.id, handle)}
+                  onPointerMove={handleAxisHandlePointerMove}
+                  onPointerUp={handleAxisHandlePointerUp}
+                />
+              );
               return (
                 <g key={dr.id}>
-                  {points.map((p, i) => (
+                  {screen.map((p, i) => (
                     <DrawingHandle
-                    color={dr.color}
+                      color={dr.color}
                       key={i}
-                      cx={zoomedXScale(indexForDate(p.x) + 0.5)}
-                      cy={zoomedPriceScale(p.y)}
+                      cx={p.x}
+                      cy={p.y}
+                      cursor={cursorOf(i)}
                       onPointerDown={handleEndpointPointerDown(dr.id, i)}
                       onPointerMove={handleEndpointPointerMove}
                       onPointerUp={handleEndpointPointerUp}
                     />
                   ))}
-                  {dr.lineType === "channel" && (
-                    <DrawingHandle
-                    color={dr.color}
-                      cx={(x1 + x2) / 2}
-                      cy={zoomedPriceScale((dr.y1 + dr.y2) / 2 + (dr.channelOffset ?? 0))}
-                      onPointerDown={handleAxisHandlePointerDown(dr.id)}
-                      onPointerMove={handleAxisHandlePointerMove}
-                      onPointerUp={handleAxisHandlePointerUp}
-                    />
+                  {(isChannel || isDisjoint) && (
+                    <>
+                      {isChannel &&
+                        line2.map((c, i) =>
+                          channelHandle(
+                            i === 0 ? "line2Start" : "line2End",
+                            c.x,
+                            c.y,
+                            gestures ? cornerCursor(c.x, c.y, line2[1 - i].x, screen[i].y) : undefined
+                          )
+                        )}
+                      {channelHandle("line1Mid", (screen[0].x + screen[1].x) / 2, (screen[0].y + screen[1].y) / 2, gestures ? "ns" : undefined)}
+                      {channelHandle("line2Mid", (line2[0].x + line2[1].x) / 2, (line2[0].y + line2[1].y) / 2, gestures ? "ns" : undefined)}
+                    </>
                   )}
                 </g>
               );

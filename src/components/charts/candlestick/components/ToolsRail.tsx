@@ -5,6 +5,7 @@ import { Popover } from "../../../forms/Popover";
 import { Checkbox } from "../../../forms/Checkbox";
 import { ChevronRightIcon, MagnetIcon, EyeIcon, EyeOffIcon, TimeframeLayersIcon, DaySeparatorsIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon, MaximizeIcon, MinimizeIcon } from "../../../icons";
 import { ToolCategorySheet } from "./ToolCategorySheet";
+import { RailScrollThumb } from "./RailScrollThumb";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { DRAWING_TOOL_CATEGORIES } from "../drawingCatalog";
 import { drawingToolSummary } from "../drawingDescriptions";
@@ -198,13 +199,14 @@ export function ToolsRail({
   // two ways — only one of the two ever renders, so a category id in there can't mean both at
   // once. Null on the vertical rail regardless of what's open there, which is what keeps the
   // sheet from mounting on top of a Popover showing the very same list.
+  const itemsRef = useRef<HTMLDivElement>(null);
   const sheetCategory = horizontal ? (DRAWING_TOOL_CATEGORIES.find((c) => c.id === openToolMenu) ?? null) : null;
   return (
     <div
       className={["lq-chart__tools-rail", horizontal && "lq-chart__tools-rail--horizontal"].filter(Boolean).join(" ")}
       style={railStyle}
     >
-      <div className="lq-chart__tools-rail-items">
+      <div className="lq-chart__tools-rail-items" ref={itemsRef}>
         {/* One group per category (Lignes/Fibonacci/Vagues d'Elliott) — each button
             represents whichever of its own tools was picked last (defaulting to the
             first). The chevron is invisible until its own group (button or chevron) is
@@ -606,6 +608,7 @@ export function ToolsRail({
           </button>
         )}
       </div>
+      {!horizontal && <RailScrollThumb scrollerRef={itemsRef} />}
       {/* One sheet for the whole rail, not one per category — it renders whichever category
           `openToolMenu` names (see sheetCategory above), so there's never more than one on screen
           and the exit animation of the one leaving isn't racing a sibling's entrance. */}

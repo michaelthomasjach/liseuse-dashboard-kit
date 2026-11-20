@@ -10,6 +10,7 @@ import { DropdownPanel } from "../primitives/DropdownPanel";
 import { Modal } from "../primitives/Modal";
 import { ChevronLeftIcon, ChevronDownIcon, CalendarIcon, EyeIcon, EyeOffIcon, SettingsIcon, TrashIcon, MeasureIcon, AverageLineIcon, ZoomOutIcon } from "../icons";
 import { DEFAULT_MARGIN, TOOLS_RAIL_WIDTH, PRICE_AXIS_WIDTH_MOBILE, TOOLS_RAIL_HEIGHT_MOBILE } from "./candlestick/constants";
+import { RailScrollThumb } from "./candlestick/components/RailScrollThumb";
 import "./charts-shared.css";
 
 // The only granularity offered now (see this file's own git history for the Semaine/Trimestre/
@@ -199,6 +200,7 @@ export function SeasonalityView({ data, symbol, onBack, showHeader = true, heigh
   // the current viewMode rather than hidden in "independent", so flipping to "current" later
   // doesn't require re-opening this modal to turn them back on.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const railItemsRef = useRef<HTMLDivElement>(null);
   const [fillUnderCurve, setFillUnderCurve] = useState(false);
   const [fillBetweenCurves, setFillBetweenCurves] = useState(false);
 
@@ -385,7 +387,7 @@ export function SeasonalityView({ data, symbol, onBack, showHeader = true, heigh
           className={["lq-chart__tools-rail", mobile && "lq-chart__tools-rail--horizontal"].filter(Boolean).join(" ")}
           style={mobile ? { height: TOOLS_RAIL_HEIGHT_MOBILE } : { width: TOOLS_RAIL_WIDTH, height }}
         >
-          <div className="lq-chart__tools-rail-items">
+          <div className="lq-chart__tools-rail-items" ref={railItemsRef}>
             {/* Opens the two conditional-fill toggles below (aire sous la courbe / aire entre
                 les deux courbes) — occupies the rail slot the old granularity picker used to
                 (see this file's own git history), the only remaining per-chart setting once
@@ -509,6 +511,7 @@ export function SeasonalityView({ data, symbol, onBack, showHeader = true, heigh
               <AverageLineIcon size={14} />
             </button>
           </div>
+          {!mobile && <RailScrollThumb scrollerRef={railItemsRef} />}
         </div>
 
         {/* Inline, always-on overlay (not a modal behind a rail button — that left it

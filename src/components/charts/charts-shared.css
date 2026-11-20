@@ -832,32 +832,49 @@ button.lq-chart__legend-item {
      nowhere to push to. */
   height: 100%;
   box-sizing: border-box;
-  /* Trop court pour tous les outils : la colonne défile. La barre n'apparaît qu'au survol (voir plus bas). */
+  /* Trop court pour tous les outils : la colonne défile. Sa barre native est toujours masquée, et
+     remplacée au survol par un curseur dessiné par-dessus (RailScrollThumb) : voir plus bas. */
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
 }
 
+/* Colonne verticale : aucune barre native, jamais. Dans 40 px, elle prenait 10 à 17 px de largeur
+   et poussait les icônes contre le bord gauche ; et la barre fine de 4 px voulue ici ne tenait pas
+   dans Chrome, qui ignore ::-webkit-scrollbar dès qu'un ancêtre pose scrollbar-color (la racine
+   du kit le fait, et la propriété s'hérite) : la barre système, flèches comprises, restait affichée. */
+.lq-chart__tools-rail:not(.lq-chart__tools-rail--horizontal) .lq-chart__tools-rail-items {
+  scrollbar-width: none;
+}
 .lq-chart__tools-rail:not(.lq-chart__tools-rail--horizontal) .lq-chart__tools-rail-items::-webkit-scrollbar {
-  width: 4px;
-}
-.lq-chart__tools-rail:not(.lq-chart__tools-rail--horizontal) .lq-chart__tools-rail-items::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 2px;
-}
-.lq-chart__tools-rail:not(.lq-chart__tools-rail--horizontal) .lq-chart__tools-rail-items:hover::-webkit-scrollbar-thumb {
-  background: var(--lq-color-border);
-}
-@supports not selector(::-webkit-scrollbar) {
-  .lq-chart__tools-rail:not(.lq-chart__tools-rail--horizontal) .lq-chart__tools-rail-items {
-    scrollbar-width: none;
-  }
-  .lq-chart__tools-rail:not(.lq-chart__tools-rail--horizontal) .lq-chart__tools-rail-items:hover {
-    scrollbar-width: thin;
-    scrollbar-color: var(--lq-color-border) transparent;
-  }
+  display: none;
+  width: 0;
 }
 
+/* Le curseur qui la remplace : 4 px sur le bord droit de la colonne, par-dessus les boutons (il ne
+   prend aucune place), visible seulement quand le pointeur est sur la colonne. */
+.lq-chart__tools-rail-thumb {
+  position: absolute;
+  right: 1px;
+  z-index: 1;
+  width: 4px;
+  border-radius: 2px;
+  background-color: color-mix(in srgb, var(--lq-color-text) 28%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  cursor: default;
+  touch-action: none;
+  transition: opacity 160ms ease, background-color 120ms ease;
+}
+.lq-chart__tools-rail:hover .lq-chart__tools-rail-thumb,
+.lq-chart__tools-rail-thumb--dragging {
+  opacity: 1;
+  pointer-events: auto;
+}
+.lq-chart__tools-rail-thumb:hover,
+.lq-chart__tools-rail-thumb--dragging {
+  background-color: color-mix(in srgb, var(--lq-color-text) 50%, transparent);
+}
 /* Extra breathing room between rail items on a coarse (touch) pointer — every button already
    grows under this same media query (see .lq-chart__icon-button), which a plain 4px gap doesn't
    leave room for. */

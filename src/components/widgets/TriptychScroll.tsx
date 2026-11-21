@@ -12,6 +12,15 @@ export interface TriptychScrollState {
   progress: number;
 }
 
+export interface TriptychBackground {
+  /** Vidéo (MP4, WebM) : muette, en boucle, lue d'elle-même. */
+  video?: string;
+  /** Image, à la place de la vidéo ou en attendant qu'elle charge (`poster`). */
+  image?: string;
+  /** Texte alternatif ; vide par défaut (fond décoratif). */
+  alt?: string;
+}
+
 export interface TriptychScrollProps {
   /**
    * Les trois sections, de gauche à droite ; chacune est une suite de vues (une image, une carte de
@@ -34,6 +43,14 @@ export interface TriptychScrollProps {
   stickyTop?: string;
   /** Défilement nécessaire pour une étape, en part de la hauteur du cadre. Défaut 0.9. */
   stepLength?: number;
+  /**
+   * Un fond commun aux trois sections : une vidéo (ou une image) qui s'étend sur toute la largeur, chaque
+   * section en montrant sa part, comme trois fenêtres sur la même scène. Il forme la première vue de chaque
+   * section : au défilement, les sections glissent l'une après l'autre et découvrent leurs vues suivantes
+   * (`sections`). La vidéo tourne en boucle, sans le son ; elle reste à l'arrêt sur sa première image quand le
+   * système demande moins d'animations.
+   */
+  background?: TriptychBackground;
   /** Espace entre les sections, en px. Défaut 8. */
   gap?: number;
   /**
@@ -65,7 +82,8 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
  * dans le composant), donc tout conteneur qui défile convient, pas seulement la fenêtre.
  */
 export function TriptychScroll({
-  sections,
+  sections: sectionsProp,
+  background,
   directions = ["down", "up", "down"],
   order = [0, 2, 1],
   height = "100vh",
@@ -81,6 +99,14 @@ export function TriptychScroll({
   const rootRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const trackRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [frameHeight, setFrameHeight] = useState(0);
+  const [frameWidth, setFrameWidth] = useState(0);
+  const reducedMotion = useReducedMotion();
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+  // Le fond commun est la première vue de chaque section.
+  const sections = (background
+    ? sectionsProp.map((views, c) => [<TriptychBackdrop key="backdrop" background={background} column={c} gap={gap} frameWidth={frameWidth} reducedMotion={reducedMotion} videoRef={(v) => (videoRefs.current[c] = v)} />, ...views])
+    : sectionsProp) as [ReactNode[], ReactNode[], ReactNode[]];
   const counts = sections.map((s) => Math.max(1, s.length));
   const steps = Math.max(...counts) - 1;
   const [state, setState] = useState<TriptychScrollState>({ step: 0, steps, progress: 0 });
@@ -88,11 +114,14 @@ export function TriptychScroll({
   onStepChangeRef.current = onStepChange;
 
   // Hauteur totale : le cadre, plus une longueur de défilement par étape.
-  const [frameHeight, setFrameHeight] = useState(0);
   useLayoutEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
-    const ro = new ResizeObserver(() => setFrameHeight(frame.clientHeight));
+    const ro = new ResizeObserver(() => {
+      setFrameHeight(frame.clientHeight);
+      setFrameWidth(frame.clientWidth);
+    });
+    setFrameWidth(frame.clientWidth);
     ro.observe(frame);
     setFrameHeight(frame.clientHeight);
     return () => ro.disconnect();
@@ -159,6 +188,17 @@ export function TriptychScroll({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [steps, counts.join(), directions.join(), order.join(), frameHeight]);
 
+  // Les trois vidéos du fond commun restent calées sur la première (même fichier, trois lecteurs).
+  useEffect(() => {
+    if (!background?.video || reducedMotion) return;
+    const timer = window.setInterval(() => {
+      const [lead, ...rest] = videoRefs.current;
+      if (!lead) return;
+      for (const v of rest) if (v && Math.abs(v.currentTime - lead.currentTime) > 0.12) v.currentTime = lead.currentTime;
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [background?.video, reducedMotion]);
+
   const total = frameHeight ? `calc(${height} + ${Math.round(steps * stepLength * frameHeight)}px)` : height;
   const overlayNode = typeof overlay === "function" ? overlay(state) : overlay;
 
@@ -203,5 +243,61 @@ export function TriptychScroll({
         {overlayNode != null && <div className="lq-triptych__overlay">{overlayNode}</div>}
       </div>
     </section>
+  );
+}
+
+/** Vrai quand le système demande moins d'animations. */
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (!mql) return;
+    const onChange = () => setReduced(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
+
+/** La part du fond commun qui revient à une section : le média à la largeur du cadre, décalé de la colonne. */
+function TriptychBackdrop({
+  background,
+  column,
+  gap,
+  frameWidth,
+  reducedMotion,
+  videoRef,
+}: {
+  background: TriptychBackground;
+  column: number;
+  gap: number;
+  frameWidth: number;
+  reducedMotion: boolean;
+  videoRef: (v: HTMLVideoElement | null) => void;
+}) {
+  const columnWidth = (frameWidth - 2 * gap) / 3;
+  const style: CSSProperties = frameWidth ? { width: frameWidth, left: -column * (columnWidth + gap) } : { width: "300%", left: `${-column * 100}%` };
+  return (
+    <div className="lq-triptych__backdrop">
+      {background.video ? (
+        <video
+          ref={videoRef}
+          className="lq-triptych__media"
+          style={style}
+          src={background.video}
+          poster={background.image}
+          muted
+          loop
+          playsInline
+          autoPlay={!reducedMotion}
+          preload="auto"
+          aria-hidden={background.alt ? undefined : true}
+          aria-label={background.alt || undefined}
+        />
+      ) : background.image ? (
+        <img className="lq-triptych__media" style={style} src={background.image} alt={background.alt ?? ""} draggable={false} />
+      ) : null}
+    </div>
   );
 }

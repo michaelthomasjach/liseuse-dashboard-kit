@@ -130,3 +130,31 @@ export const TableauDeBord: Story = {
     </div>
   ),
 };
+
+/** Un fond commun : une vidéo sur toute la largeur, chaque section en montre sa part ; au défilement, les sections
+ *  glissent l'une après l'autre et découvrent l'information. */
+export const FondVideo: Story = {
+  args: {
+    background: { video: "https://assets.mixkit.co/videos/5004/5004-720.mp4", image: photoUrl(LANDSCAPE_PHOTOS[2].id, 1600) },
+    sections: [
+      [metric("Ventes du trimestre", "1,24 M€", 8.2, [4, 6, 5, 7, 8, 9, 11]), metric("Panier moyen", "67,40 €", -1.4, [8, 7, 7, 6, 7, 6, 6])],
+      [note("Ce qu'il faut retenir", "Le trimestre est porté par les ventes en ligne.", [3, 4, 5, 5, 6, 7, 8]), note("À surveiller", "Le panier moyen recule légèrement.", [8, 7, 7, 6, 6, 6, 5])],
+      [metric("Nouveaux clients", "1 284", 12.5, [3, 4, 4, 6, 7, 8, 9]), note("Prochaine étape", "Relancer les clients inactifs.", [2, 3, 3, 4, 4, 5, 6])],
+    ],
+    height: "75vh",
+    stickyTop: "12px",
+    gap: 8,
+    ariaLabel: "Bilan",
+    overlay: ({ step }) =>
+      step === 0 ? (
+        <div style={{ position: "absolute", right: 28, bottom: 20, color: "#fff", fontSize: "clamp(2.4rem, 7vw, 6rem)", fontWeight: 700, letterSpacing: "-0.04em", textShadow: "0 4px 30px rgba(0,0,0,.35)" }}>Organisé.</div>
+      ) : null,
+  },
+  render: (args) => (
+    <div style={{ padding: "0 12px" }}>
+      <Intro>Faites défiler ↓</Intro>
+      <TriptychScroll {...args} />
+      <Intro>Fin.</Intro>
+    </div>
+  ),
+};

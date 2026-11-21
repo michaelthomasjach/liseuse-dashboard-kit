@@ -18,7 +18,7 @@
   min-width: 0;
   height: 100%;
   overflow: hidden;
-  background-color: var(--lq-color-fill);
+  background-color: var(--lq-color-panel);
   border: 1px solid var(--lq-color-border-subtle);
   border-radius: var(--lq-triptych-radius);
   isolation: isolate;
@@ -73,4 +73,22 @@
   .lq-triptych {
     --lq-triptych-radius: var(--lq-radius-md);
   }
+}
+
+/* Le fond commun : dans chaque section, le média à la largeur du cadre, décalé de la colonne (style en ligne) —
+   les trois parts forment une seule scène. */
+.lq-triptych__backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--lq-color-fill-track);
+}
+
+.lq-triptych__media {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  pointer-events: none;
 }

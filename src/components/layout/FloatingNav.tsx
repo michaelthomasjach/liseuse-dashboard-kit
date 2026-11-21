@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import "./FloatingNav.css";
 
 export interface FloatingNavItem {
@@ -39,11 +39,22 @@ export interface FloatingNavProps {
  * liste devient une rangée de pastilles qui défile en bas de l'écran.
  */
 export function FloatingNav({ items, title, side = "left", placement = "fixed", ariaLabel = "Sections", className }: FloatingNavProps) {
+  // Rangée de pastilles (téléphone) plus large que l'écran : l'entrée active est ramenée au centre, sans faire
+  // défiler la page (scrollLeft de la liste seule, pas scrollIntoView).
+  const listRef = useRef<HTMLUListElement>(null);
+  const activeId = items.find((i) => i.active)?.id;
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || list.scrollWidth <= list.clientWidth) return;
+    const active = list.querySelector<HTMLElement>(".lq-floating-nav__item--active");
+    if (!active) return;
+    list.scrollLeft = active.offsetLeft - (list.clientWidth - active.offsetWidth) / 2;
+  }, [activeId]);
   const classes = ["lq-floating-nav", `lq-floating-nav--${side}`, `lq-floating-nav--${placement}`, className].filter(Boolean).join(" ");
   return (
     <nav className={classes} aria-label={ariaLabel}>
       {title && <div className="lq-floating-nav__title">{title}</div>}
-      <ul className="lq-floating-nav__list">
+      <ul ref={listRef} className="lq-floating-nav__list">
         {items.map((item) => (
           <li key={item.id}>
             <a

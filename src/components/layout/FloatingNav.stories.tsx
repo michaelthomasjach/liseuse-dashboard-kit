@@ -8,7 +8,7 @@ import { LANDSCAPE_PHOTOS, photoUrl } from "../../test-data/showcasePhotos";
  * Sur téléphone (placement fixe), il devient une rangée de pastilles en bas de l'écran.
  */
 const meta: Meta<typeof FloatingNav> = {
-  title: "Layout/FloatingNav",
+  title: "Layouts/FloatingNav",
   component: FloatingNav,
   parameters: { layout: "fullscreen" },
 };

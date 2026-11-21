@@ -58,7 +58,7 @@ export const Ouverture: Story = {
             Un seul outil pour le courrier, les clients et les projets, qui se range tout seul.
           </span>
           <span>
-            <Button variant="solid">Rejoindre la liste</Button>
+            <Button tone="primary">Rejoindre la liste</Button>
           </span>
         </div>
         <div style={{ position: "absolute", right: 28, bottom: 20, textAlign: "right" }}>

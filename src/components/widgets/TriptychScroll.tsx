@@ -50,22 +50,6 @@ export interface TriptychScrollProps {
 }
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-/** Accélère puis freine : la relève d'une section part doucement et se pose doucement. */
-const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-
-/** Vrai quand le système demande moins d'animations. */
-function useReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const mql = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-    if (!mql) return;
-    const onChange = () => setReduced(mql.matches);
-    onChange();
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
-  }, []);
-  return reduced;
-}
 
 /**
  * Trois sections côte à côte qui se relaient au défilement de la page, sans jamais bouger ensemble.
@@ -75,9 +59,10 @@ function useReducedMotion() {
  * puis la droite, puis le centre monte (ordre et sens réglables) — pour amener la vue suivante de
  * chacune. Les informations arrivent ainsi par vagues, chaque section racontant sa propre suite.
  *
- * La position est lue dans la géométrie (où est le cadre collé dans le composant), donc tout
- * conteneur qui défile convient, pas seulement la fenêtre. Le mouvement est lissé et écrit
- * directement dans le style des colonnes, sans rendu React par image.
+ * Une section ne s'arrête jamais à mi-chemin : passé son seuil, elle bascule entière vers sa vue
+ * suivante par une animation de 0,9 s (aucune sous `prefers-reduced-motion`), et revient en arrière
+ * de la même façon quand on remonte. La position est lue dans la géométrie (où est le cadre collé
+ * dans le composant), donc tout conteneur qui défile convient, pas seulement la fenêtre.
  */
 export function TriptychScroll({
   sections,
@@ -99,7 +84,6 @@ export function TriptychScroll({
   const counts = sections.map((s) => Math.max(1, s.length));
   const steps = Math.max(...counts) - 1;
   const [state, setState] = useState<TriptychScrollState>({ step: 0, steps, progress: 0 });
-  const reducedMotion = useReducedMotion();
   const onStepChangeRef = useRef(onStepChange);
   onStepChangeRef.current = onStepChange;
 
@@ -120,17 +104,17 @@ export function TriptychScroll({
     if (!root || !frame) return;
     // Rang de chaque section dans l'ordre de relève.
     const rank = [0, 1, 2].map((c) => Math.max(0, order.indexOf(c)));
-    const current = [0, 0, 0];
+    const current = [-1, -1, -1];
     let raf = 0;
     let lastStep = -1;
 
     const targetFor = (u: number, c: number) => {
       const k = Math.floor(u);
       const f = u - k;
-      // Chaque section bouge dans sa fenêtre de l'étape : 0–40 %, 25–65 %, 50–90 % ; le reste de
-      // l'étape, tout est posé et se lit.
-      const local = ease(clamp01((f - rank[c] * 0.25) / 0.4));
-      return Math.min(counts[c] - 1, k + local);
+      // Chaque section bascule entière vers sa vue suivante quand le défilement passe son seuil dans
+      // l'étape : 15 %, 40 %, 65 % selon son rang. Jamais à mi-chemin : la relève est une animation
+      // (transition CSS), pas un suivi de la molette au pixel près.
+      return Math.min(counts[c] - 1, k + (f >= 0.15 + rank[c] * 0.25 ? 1 : 0));
     };
 
     const apply = () => {
@@ -140,18 +124,16 @@ export function TriptychScroll({
       const travel = r.height - fr.height;
       const progress = travel > 0 ? clamp01((fr.top - r.top) / travel) : 0;
       const u = progress * steps;
-      let settling = false;
       for (let c = 0; c < 3; c++) {
         const target = targetFor(u, c);
-        const next = reducedMotion ? target : current[c] + (target - current[c]) * 0.2;
-        current[c] = Math.abs(target - next) < 0.001 ? target : next;
-        if (current[c] !== target) settling = true;
+        if (target === current[c]) continue;
+        current[c] = target;
         const track = trackRefs.current[c];
         if (!track) continue;
         const n = counts[c];
         // « up » : les vues sont empilées dans l'ordre et la piste monte ; « down » : empilées à
         // l'envers et la piste descend, la vue suivante arrive par le haut.
-        const index = directions[c] === "down" ? n - 1 - current[c] : current[c];
+        const index = directions[c] === "down" ? n - 1 - target : target;
         track.style.transform = `translate3d(0, ${(-index * 100) / n}%, 0)`;
       }
       const step = Math.min(steps, Math.floor(u + 0.1));
@@ -160,7 +142,6 @@ export function TriptychScroll({
         setState({ step, steps, progress });
         onStepChangeRef.current?.(step);
       }
-      if (settling) raf = requestAnimationFrame(apply);
     };
     const schedule = () => {
       if (!raf) raf = requestAnimationFrame(apply);
@@ -176,7 +157,7 @@ export function TriptychScroll({
     };
     // counts / directions / order : des tableaux recréés à chaque rendu, comparés par leur contenu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [steps, reducedMotion, counts.join(), directions.join(), order.join(), frameHeight]);
+  }, [steps, counts.join(), directions.join(), order.join(), frameHeight]);
 
   const total = frameHeight ? `calc(${height} + ${Math.round(steps * stepLength * frameHeight)}px)` : height;
   const overlayNode = typeof overlay === "function" ? overlay(state) : overlay;

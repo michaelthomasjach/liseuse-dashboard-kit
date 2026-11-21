@@ -83,3 +83,17 @@
   padding-left: var(--lq-space-2);
   border-left: 1px solid var(--lq-color-border-subtle);
 }
+
+/* Sur un écran de téléphone, la carte garde ses chiffres sur une ligne : la courbe cède sa place et
+   les colonnes de chiffres perdent leur largeur minimale commune (faite pour aligner des cartes
+   empilées sur grand écran), qui faisait déborder la quantité. */
+@media (max-width: 480px) {
+  .lq-holding-card__sparkline {
+    display: none;
+  }
+
+  .lq-holding-card__figures,
+  .lq-holding-card__quantity {
+    min-width: 0;
+  }
+}

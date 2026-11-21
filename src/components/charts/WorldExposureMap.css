@@ -7,6 +7,13 @@
   width: 100%;
 }
 
+/* La carte est dessinée à la largeur demandée (`width`) ; dans un conteneur plus étroit (un
+   téléphone), elle s'y ramène en gardant ses proportions (viewBox) au lieu de déborder. */
+.lq-world-map > svg {
+  max-width: 100%;
+  height: auto;
+}
+
 .lq-world-map__country {
   stroke: var(--lq-color-border-subtle);
   stroke-width: 0.5;

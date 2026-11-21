@@ -1,0 +1,134 @@
+.lq-curved-carousel {
+  --lq-curved-carousel-radius: var(--lq-radius-lg);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lq-space-3);
+  width: 100%;
+}
+
+/* La scène 3D : la perspective est posée ici, chaque carte est placée en absolu au centre puis
+   déplacée sur la courbe par le script (transform). */
+.lq-curved-carousel__viewport {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  perspective: 1100px;
+  perspective-origin: 50% 50%;
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+}
+
+.lq-curved-carousel__viewport:active {
+  cursor: grabbing;
+}
+
+.lq-curved-carousel__viewport:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--lq-color-focus-ring);
+  border-radius: var(--lq-curved-carousel-radius);
+}
+
+.lq-curved-carousel__stage {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.lq-curved-carousel__card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  background-color: var(--lq-color-fill);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-curved-carousel-radius);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* Contenu libre (une carte du kit…) : il porte son propre fond et son propre cadre. */
+.lq-curved-carousel__card--content {
+  overflow: visible;
+  background: none;
+  border: 0;
+}
+
+.lq-curved-carousel__card--interactive {
+  cursor: pointer;
+}
+
+.lq-curved-carousel__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.lq-curved-carousel__text {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--lq-space-6) var(--lq-space-4) var(--lq-space-4);
+  color: #fff;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0));
+}
+
+.lq-curved-carousel__title {
+  font-size: var(--lq-text-md);
+  font-weight: var(--lq-font-weight-bold, 700);
+  line-height: var(--lq-line-height-heading);
+}
+
+.lq-curved-carousel__caption {
+  font-size: var(--lq-text-xs);
+  opacity: 0.85;
+}
+
+.lq-curved-carousel__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+}
+
+.lq-curved-carousel__control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-pill);
+  cursor: pointer;
+  transition: background-color var(--lq-transition-fast);
+}
+
+.lq-curved-carousel__control:hover {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-curved-carousel__control:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-curved-carousel {
+  --lq-curved-carousel-radius: 0;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-curved-carousel__control {
+  border-radius: 0;
+  border-color: var(--lq-color-border);
+}

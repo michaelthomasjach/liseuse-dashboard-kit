@@ -75,6 +75,8 @@ export type { ActivityFeedProps, ActivityPost } from "./ActivityFeed";
 
 export { Gallery } from "./Gallery";
 export type { GalleryProps, GalleryImage } from "./Gallery";
+export { TriptychScroll } from "./TriptychScroll";
+export type { TriptychScrollProps, TriptychScrollState, TriptychDirection } from "./TriptychScroll";
 
 export { Lightbox } from "./Lightbox";
 export type { LightboxProps, LightboxImage } from "./Lightbox";

@@ -1,0 +1,226 @@
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import "./TriptychScroll.css";
+
+export type TriptychDirection = "up" | "down";
+
+export interface TriptychScrollState {
+  /** Étape atteinte : 0 au départ, puis une de plus à chaque relève des trois sections. */
+  step: number;
+  /** Nombre d'étapes (le nombre de vues de la section qui en a le plus, moins un). */
+  steps: number;
+  /** Avancement du défilement sur toute la longueur du composant, de 0 à 1. */
+  progress: number;
+}
+
+export interface TriptychScrollProps {
+  /**
+   * Les trois sections, de gauche à droite ; chacune est une suite de vues (une image, une carte de
+   * chiffres, un texte…) qui occupent toute la hauteur de la section. Toujours trois sections.
+   */
+  sections: [ReactNode[], ReactNode[], ReactNode[]];
+  /**
+   * Sens de défilement de chaque section : `"down"`, la vue suivante descend du haut ; `"up"`, elle
+   * monte du bas. Défaut `["down", "up", "down"]` : le centre va à contre-sens des bords.
+   */
+  directions?: [TriptychDirection, TriptychDirection, TriptychDirection];
+  /**
+   * L'ordre dans lequel les sections se relaient à chaque étape (indices 0, 1, 2 = gauche, centre,
+   * droite). Défaut `[0, 2, 1]` : la gauche, puis la droite, puis le centre.
+   */
+  order?: [number, number, number];
+  /** Hauteur du cadre collé à l'écran (toute valeur CSS). Défaut `"100vh"`. */
+  height?: string;
+  /** Décalage du haut du cadre quand il est collé (une barre de menu au-dessus…). Défaut `"0px"`. */
+  stickyTop?: string;
+  /** Défilement nécessaire pour une étape, en part de la hauteur du cadre. Défaut 0.9. */
+  stepLength?: number;
+  /** Espace entre les sections, en px. Défaut 8. */
+  gap?: number;
+  /**
+   * Posé par-dessus les trois sections : un titre, un bouton, une pastille au centre… Une fonction
+   * reçoit l'étape courante (elle n'est rappelée qu'au changement d'étape).
+   */
+  overlay?: ReactNode | ((state: TriptychScrollState) => ReactNode);
+  /** Appelé quand l'étape change. */
+  onStepChange?: (step: number) => void;
+  /** Nom accessible de l'ensemble. */
+  ariaLabel?: string;
+  className?: string;
+  style?: CSSProperties;
+}
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+/** Accélère puis freine : la relève d'une section part doucement et se pose doucement. */
+const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+/** Vrai quand le système demande moins d'animations. */
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (!mql) return;
+    const onChange = () => setReduced(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
+
+/**
+ * Trois sections côte à côte qui se relaient au défilement de la page, sans jamais bouger ensemble.
+ *
+ * Le composant est plus haut que l'écran ; son cadre reste collé pendant qu'on fait défiler, et
+ * chaque cran de défilement fait avancer les sections **l'une après l'autre** — la gauche descend,
+ * puis la droite, puis le centre monte (ordre et sens réglables) — pour amener la vue suivante de
+ * chacune. Les informations arrivent ainsi par vagues, chaque section racontant sa propre suite.
+ *
+ * La position est lue dans la géométrie (où est le cadre collé dans le composant), donc tout
+ * conteneur qui défile convient, pas seulement la fenêtre. Le mouvement est lissé et écrit
+ * directement dans le style des colonnes, sans rendu React par image.
+ */
+export function TriptychScroll({
+  sections,
+  directions = ["down", "up", "down"],
+  order = [0, 2, 1],
+  height = "100vh",
+  stickyTop = "0px",
+  stepLength = 0.9,
+  gap = 8,
+  overlay,
+  onStepChange,
+  ariaLabel = "Sections",
+  className,
+  style,
+}: TriptychScrollProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const trackRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const counts = sections.map((s) => Math.max(1, s.length));
+  const steps = Math.max(...counts) - 1;
+  const [state, setState] = useState<TriptychScrollState>({ step: 0, steps, progress: 0 });
+  const reducedMotion = useReducedMotion();
+  const onStepChangeRef = useRef(onStepChange);
+  onStepChangeRef.current = onStepChange;
+
+  // Hauteur totale : le cadre, plus une longueur de défilement par étape.
+  const [frameHeight, setFrameHeight] = useState(0);
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const ro = new ResizeObserver(() => setFrameHeight(frame.clientHeight));
+    ro.observe(frame);
+    setFrameHeight(frame.clientHeight);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    const frame = frameRef.current;
+    if (!root || !frame) return;
+    // Rang de chaque section dans l'ordre de relève.
+    const rank = [0, 1, 2].map((c) => Math.max(0, order.indexOf(c)));
+    const current = [0, 0, 0];
+    let raf = 0;
+    let lastStep = -1;
+
+    const targetFor = (u: number, c: number) => {
+      const k = Math.floor(u);
+      const f = u - k;
+      // Chaque section bouge dans sa fenêtre de l'étape : 0–40 %, 25–65 %, 50–90 % ; le reste de
+      // l'étape, tout est posé et se lit.
+      const local = ease(clamp01((f - rank[c] * 0.25) / 0.4));
+      return Math.min(counts[c] - 1, k + local);
+    };
+
+    const apply = () => {
+      raf = 0;
+      const r = root.getBoundingClientRect();
+      const fr = frame.getBoundingClientRect();
+      const travel = r.height - fr.height;
+      const progress = travel > 0 ? clamp01((fr.top - r.top) / travel) : 0;
+      const u = progress * steps;
+      let settling = false;
+      for (let c = 0; c < 3; c++) {
+        const target = targetFor(u, c);
+        const next = reducedMotion ? target : current[c] + (target - current[c]) * 0.2;
+        current[c] = Math.abs(target - next) < 0.001 ? target : next;
+        if (current[c] !== target) settling = true;
+        const track = trackRefs.current[c];
+        if (!track) continue;
+        const n = counts[c];
+        // « up » : les vues sont empilées dans l'ordre et la piste monte ; « down » : empilées à
+        // l'envers et la piste descend, la vue suivante arrive par le haut.
+        const index = directions[c] === "down" ? n - 1 - current[c] : current[c];
+        track.style.transform = `translate3d(0, ${(-index * 100) / n}%, 0)`;
+      }
+      const step = Math.min(steps, Math.floor(u + 0.1));
+      if (step !== lastStep) {
+        lastStep = step;
+        setState({ step, steps, progress });
+        onStepChangeRef.current?.(step);
+      }
+      if (settling) raf = requestAnimationFrame(apply);
+    };
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(apply);
+    };
+    apply();
+    // Écoute en capture : le défilement de n'importe quel conteneur parent arrive ici.
+    window.addEventListener("scroll", schedule, { passive: true, capture: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", schedule, { capture: true });
+      window.removeEventListener("resize", schedule);
+    };
+    // counts / directions / order : des tableaux recréés à chaque rendu, comparés par leur contenu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steps, reducedMotion, counts.join(), directions.join(), order.join(), frameHeight]);
+
+  const total = frameHeight ? `calc(${height} + ${Math.round(steps * stepLength * frameHeight)}px)` : height;
+  const overlayNode = typeof overlay === "function" ? overlay(state) : overlay;
+
+  return (
+    <section
+      ref={rootRef}
+      className={["lq-triptych", className].filter(Boolean).join(" ")}
+      style={{ ...style, height: total }}
+      aria-label={ariaLabel}
+    >
+      <div ref={frameRef} className="lq-triptych__frame" style={{ height, top: stickyTop, gap }}>
+        {sections.map((views, c) => {
+          const list = directions[c] === "down" ? [...views].reverse() : views;
+          const n = Math.max(1, views.length);
+          return (
+            <div key={c} className="lq-triptych__section">
+              <div
+                ref={(node) => {
+                  trackRefs.current[c] = node;
+                }}
+                className="lq-triptych__track"
+                // Position de départ (première vue) avant que le script ne prenne la main.
+                style={{ height: `${n * 100}%`, transform: directions[c] === "down" ? `translate3d(0, ${(-(n - 1) * 100) / n}%, 0)` : undefined }}
+              >
+                {list.map((view, i) => {
+                  const original = directions[c] === "down" ? n - 1 - i : i;
+                  return (
+                    <div
+                      key={original}
+                      className="lq-triptych__view"
+                      style={{ height: `${100 / n}%` }}
+                      aria-hidden={Math.min(state.step, n - 1) !== original || undefined}
+                    >
+                      {view}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+        {overlayNode != null && <div className="lq-triptych__overlay">{overlayNode}</div>}
+      </div>
+    </section>
+  );
+}

@@ -42,6 +42,8 @@ export type { JumbotronProps } from "./Jumbotron";
 
 export { Carousel } from "./Carousel";
 export type { CarouselProps } from "./Carousel";
+export { CurvedCarousel } from "./CurvedCarousel";
+export type { CurvedCarouselProps, CurvedCarouselItem } from "./CurvedCarousel";
 
 export { TreeView, moveTreeNode } from "./TreeView";
 export type { TreeViewProps, TreeNode, TreeDropPosition } from "./TreeView";

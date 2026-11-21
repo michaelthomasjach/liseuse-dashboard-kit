@@ -1,0 +1,150 @@
+.lq-floating-nav {
+  --lq-floating-nav-offset: var(--lq-space-6);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  max-width: 220px;
+}
+
+.lq-floating-nav--fixed,
+.lq-floating-nav--absolute {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.lq-floating-nav--fixed {
+  position: fixed;
+}
+
+.lq-floating-nav--absolute {
+  position: absolute;
+}
+
+.lq-floating-nav--left:not(.lq-floating-nav--static) {
+  left: var(--lq-floating-nav-offset);
+}
+
+.lq-floating-nav--right:not(.lq-floating-nav--static) {
+  right: var(--lq-floating-nav-offset);
+  align-items: flex-end;
+}
+
+.lq-floating-nav__title {
+  padding-left: 18px;
+  font-size: var(--lq-text-xs);
+  font-weight: var(--lq-font-weight-medium, 500);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-floating-nav__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lq-floating-nav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  padding: 5px 0;
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--lq-transition-fast);
+}
+
+.lq-floating-nav__item:hover {
+  color: var(--lq-color-text);
+}
+
+.lq-floating-nav__item:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--lq-radius-sm);
+}
+
+/* Le point de l'entrée active : réservé sur toutes les entrées pour que les libellés restent alignés. */
+.lq-floating-nav__dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: currentColor;
+  transform: scale(0);
+  transition: transform var(--lq-transition-fast);
+}
+
+.lq-floating-nav__item--active {
+  font-weight: var(--lq-font-weight-bold, 700);
+  color: var(--lq-color-text);
+}
+
+.lq-floating-nav__item--active .lq-floating-nav__dot {
+  transform: scale(1);
+}
+
+.lq-floating-nav__icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.lq-floating-nav__badge {
+  padding: 0 6px;
+  font-size: var(--lq-text-xs);
+  line-height: 18px;
+  color: var(--lq-color-text-muted);
+  background-color: var(--lq-color-fill);
+  border-radius: var(--lq-radius-pill);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-floating-nav__dot {
+  border-radius: 0;
+}
+
+/* Téléphone : la liste fixe devient une rangée de pastilles qui défile en bas de l'écran. */
+@media (max-width: 720px) {
+  .lq-floating-nav--fixed {
+    top: auto;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    right: 12px;
+    max-width: none;
+    transform: none;
+    align-items: stretch;
+  }
+
+  .lq-floating-nav--fixed .lq-floating-nav__title {
+    display: none;
+  }
+
+  .lq-floating-nav--fixed .lq-floating-nav__list {
+    flex-direction: row;
+    gap: 4px;
+    padding: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    background-color: var(--lq-color-panel);
+    border: 1px solid var(--lq-color-border-subtle);
+    border-radius: var(--lq-radius-pill);
+    box-shadow: var(--lq-shadow-panel);
+  }
+
+  .lq-floating-nav--fixed .lq-floating-nav__item {
+    padding: 6px 12px;
+    border-radius: var(--lq-radius-pill);
+  }
+
+  .lq-floating-nav--fixed .lq-floating-nav__dot {
+    display: none;
+  }
+
+  .lq-floating-nav--fixed .lq-floating-nav__item--active {
+    color: var(--lq-color-accent-contrast);
+    background-color: var(--lq-color-accent);
+  }
+}

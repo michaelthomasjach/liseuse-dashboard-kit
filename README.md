@@ -135,6 +135,7 @@ Toute zone scrollable sous `.lq-root` reçoit automatiquement un ascenseur fin e
 - `FieldGroup` — label + rangée de contrôles
 - `SegmentedControl` — sélecteur exclusif (ex: le switch Palette/Surface/Typo de la maquette) ; `labelPosition="top"` place le libellé au-dessus et donne aux options la hauteur d'un `Input` (barres de filtres), à 3 px sous le libellé ; une option réduite à un symbole (« ↑ ») garde un nom accessible avec `ariaLabel` et une infobulle avec `title`, et `ariaLabel` sur le composant nomme un groupe sans libellé visible
 - `Tabs` — navigation par onglets, horizontale ou verticale (`orientation`)
+- `CurvedCarousel` — rangée de cartes posée sur une courbe creuse (intérieur d'un cylindre), qui défile toute seule en boucle ; on la fait glisser à la souris ou au doigt (avec élan), à la molette horizontale ou aux flèches du clavier ; le survol la ralentit jusqu'à l'arrêt ; bouton lecture / pause ; cartes en image (`src`, `title`, `caption`) ou en contenu libre (`content`)
 - `Jumbotron` — bannière promo/hero (eyebrow, titre, description, actions, media ou image de fond avec `imageFilter="grayscale"`)
 - `TreeView` — arbre expand/collapse récursif, avec glisser-déposer optionnel (`onMove`) pour réorganiser/reparenter — voir l'utilitaire `moveTreeNode`
 - `ExpandableCard` — carte qui se déplie verticalement (animation CSS pure, pas de mesure JS)
@@ -149,6 +150,7 @@ Toute zone scrollable sous `.lq-root` reçoit automatiquement un ascenseur fin e
 
 *Un échantillon des primitives, dans la palette `color`.*
 **Widgets** — composants métier prêts à brancher sur tes données
+- `TriptychScroll` — trois sections côte à côte, collées à l'écran, qui se relaient au défilement de la page sans jamais bouger ensemble : à chaque cran, la gauche descend, puis la droite, puis le centre monte (`directions`, `order`), chacune amenant sa vue suivante ; couche `overlay` par-dessus (titre, bouton) qui reçoit l'étape courante
 - `ClockWidget` — heure/date + ligne de présence
 - `WeatherWidget` — météo courante, alerte, prévision multi-jours
 - `LiveTile` — tuile « vivante » de tableau de bord : des faces qui se relaient à intervalle régulier, la nouvelle montant par le bas (3 s immobile, glissement de 500 ms en `ease` par défaut). Faces composées (`LiveTileFace` : image ou couleur de fond, étiquette, surtitre, titre, sous-titre, pied) ou nœuds React libres ; `tone` pour le fond, `controls` fixes dans le coin ; pause au survol et au focus clavier, `paused` contrôlé, faces cachées retirées de l'arbre d'accessibilité, relais sans glissement sous `prefers-reduced-motion`
@@ -326,6 +328,7 @@ Option « Dessins et indicateurs propres à l'unité de temps » (barre d'outils
 - `SidebarLayout` — sidebar fixe desktop → tiroir hors-écran (hamburger) sur mobile ; `stickyHeader` garde l'en-tête affiché en haut de l'écran pendant le défilement (et la barre du menu sur mobile), sur un fond légèrement distinct de la page et avec une ombre portée : le contenu passe dessous ; sous-menus : `children` d'un élément du menu, groupe repliable ouvert quand l'une de ses pages est active, qui se déplie et se replie en douceur (entrées qui apparaissent l'une après l'autre ; replié, il est inerte ; aucune animation sous `prefers-reduced-motion`), entrées accrochées à une barre verticale par un petit tiret (couleur `--lq-sidebar-tree`) ; variante `rail` : le témoin d'épinglage est un anneau qui respire (gonfle et s'éclaire lentement) tant que la barre n'est pas épinglée, plein une fois épinglée ; `railLogo` : marque compacte (icône du logo) en tête de la colonne visible quand la barre est réduite
   - `--lq-sticky-header-z-index` (variable CSS, 900 par défaut) : z-index de l'en-tête collant ; l'augmenter fait passer l'en-tête au-dessus des menus et infobulles des graphiques, mais aussi des modales (3000) et notifications (2000).
 - `HeaderLayout` — nav horizontale sticky → tiroir déroulant sur mobile
+- `FloatingNav` — menu flottant au bord de l'écran (gauche ou droite, centré en hauteur) : liste courte sans fond, l'entrée active marquée d'un point (`aria-current="page"`), titre, icônes et pastilles optionnels ; `placement="fixed" | "absolute" | "static"` ; sur téléphone (≤ 720 px, placement fixe), rangée de pastilles qui défile en bas de l'écran
 
 **Pages**
 - `LoginPage` — image plein cadre sur 3/4 de la largeur, panneau de connexion centré verticalement sur le dernier quart (le formulaire est laissé à ta charge via `children`) ; l'image disparaît sous 900px

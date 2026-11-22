@@ -38,6 +38,11 @@
   }
 }
 
+/* Suivi continu du défilement : la piste est à l'endroit exact que dicte la molette, sans transition. */
+.lq-triptych--scrub .lq-triptych__track {
+  transition: none;
+}
+
 .lq-triptych__view {
   position: relative;
   flex: none;

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { HeaderLayout } from "./HeaderLayout";
 import { UserMenu } from "../finance/UserMenu";
@@ -57,4 +58,34 @@ export const InFrame: Story = {
       </div>
     </div>
   ),
+};
+
+const SECTIONS = [
+  { id: "overview", label: "Vue d'ensemble" },
+  { id: "markets", label: "Marchés" },
+  { id: "macro", label: "Macro" },
+  { id: "trading", label: "Trading" },
+  { id: "ai", label: "Analyse IA" },
+];
+
+function SwitchingMenu() {
+  const [active, setActive] = useState("overview");
+  return (
+    <HeaderLayout
+      logo={<strong>Finance Kit</strong>}
+      navItems={SECTIONS.map((s) => ({ ...s, active: s.id === active, onClick: () => setActive(s.id) }))}
+    >
+      <p>Rubrique ouverte : {SECTIONS.find((s) => s.id === active)?.label}</p>
+    </HeaderLayout>
+  );
+}
+
+/**
+ * Cliquer d'une rubrique à l'autre. Le menu porte une pastille (`.lq-header-layout__indicator`)
+ * cachée par défaut ; un thème qui l'allume (le thème Liquid) la voit passer d'une entrée à l'autre
+ * comme une goutte d'eau : le bord de tête part d'abord, la queue suit, la pastille s'écrase puis se
+ * remet en place. Sans animation si le système demande moins de mouvement.
+ */
+export const SwitchingSections: Story = {
+  render: () => <SwitchingMenu />,
 };

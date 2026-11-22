@@ -36,6 +36,78 @@
   flex: 1;
 }
 
+/* La pastille de l'entrée active : cachée ici, un thème l'allume (`display: block`) et lui donne sa
+   couleur. Ses bords gauche et droit sont posés séparément par HeaderLayout, pour que la tête et la
+   queue ne bougent pas ensemble : le bord qui part vers la nouvelle entrée devance l'autre, avec un
+   léger dépassement élastique, et la pastille s'écrase un instant pendant le trajet. */
+.lq-header-layout__nav--desktop {
+  position: relative;
+}
+
+.lq-header-layout__nav--desktop > .lq-header-layout__nav-item {
+  position: relative;
+  z-index: 1;
+}
+
+.lq-header-layout__indicator {
+  display: none;
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: var(--lq-header-nav-indicator-radius, 999px);
+  background-color: var(--lq-header-nav-indicator-bg, var(--lq-color-accent));
+  transform-origin: 50% 50%;
+}
+
+.lq-header-layout__indicator[data-state="hidden"] {
+  opacity: 0;
+}
+
+.lq-header-layout__indicator[data-dir="right"] {
+  transition:
+    right 380ms cubic-bezier(0.3, 1.32, 0.5, 1),
+    left 560ms cubic-bezier(0.45, 1.18, 0.42, 1) 70ms;
+}
+
+.lq-header-layout__indicator[data-dir="left"] {
+  transition:
+    left 380ms cubic-bezier(0.3, 1.32, 0.5, 1),
+    right 560ms cubic-bezier(0.45, 1.18, 0.42, 1) 70ms;
+}
+
+/* Deux animations identiques sous deux noms : HeaderLayout alterne `a` et `b` à chaque déplacement,
+   ce qui relance l'écrasement même si l'on change d'entrée pendant le précédent. */
+.lq-header-layout__indicator[data-dir="left"][data-squish="a"],
+.lq-header-layout__indicator[data-dir="right"][data-squish="a"] {
+  animation: lq-header-nav-drop-a 620ms cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+.lq-header-layout__indicator[data-dir="left"][data-squish="b"],
+.lq-header-layout__indicator[data-dir="right"][data-squish="b"] {
+  animation: lq-header-nav-drop-b 620ms cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+@keyframes lq-header-nav-drop-a {
+  0% { transform: scale(1, 1); }
+  30% { transform: scale(1.02, 0.84); }
+  62% { transform: scale(0.99, 1.04); }
+  100% { transform: scale(1, 1); }
+}
+
+@keyframes lq-header-nav-drop-b {
+  0% { transform: scale(1, 1); }
+  30% { transform: scale(1.02, 0.84); }
+  62% { transform: scale(0.99, 1.04); }
+  100% { transform: scale(1, 1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-header-layout__indicator {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
 .lq-header-layout__nav-item {
   font-size: 0.88rem;
   font-weight: var(--lq-font-weight-medium, 500);

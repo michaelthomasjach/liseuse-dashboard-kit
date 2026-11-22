@@ -3,8 +3,17 @@ import "./TriptychScroll.css";
 
 export type TriptychDirection = "up" | "down";
 
+/**
+ * `"scrub"` : les trois sections suivent le défilement au pixel près, ensemble ; `"steps"` : chacune
+ * bascule entière vers sa vue suivante, l'une après l'autre, une fois son seuil passé.
+ */
+export type TriptychMotion = "scrub" | "steps";
+
 export interface TriptychScrollState {
-  /** Étape atteinte : 0 au départ, puis une de plus à chaque relève des trois sections. */
+  /**
+   * Étape atteinte : 0 au départ, puis une de plus à chaque relève des trois sections. En mode
+   * `"scrub"`, c'est la vue qui arrive : elle passe à 1 dès que le défilement commence.
+   */
   step: number;
   /** Nombre d'étapes (le nombre de vues de la section qui en a le plus, moins un). */
   steps: number;
@@ -28,13 +37,21 @@ export interface TriptychScrollProps {
    */
   sections: [ReactNode[], ReactNode[], ReactNode[]];
   /**
-   * Sens de défilement de chaque section : `"down"`, la vue suivante descend du haut ; `"up"`, elle
-   * monte du bas. Défaut `["down", "up", "down"]` : le centre va à contre-sens des bords.
+   * Le mouvement des sections. `"scrub"` (défaut) : elles suivent la molette en continu, toutes en
+   * même temps, sans animation ni palier — on peut s'arrêter à mi-chemin d'une vue à l'autre.
+   * `"steps"` : chacune bascule entière vers sa vue suivante (0,9 s) quand le défilement passe son
+   * seuil, l'une après l'autre dans l'ordre `order`.
+   */
+  motion?: TriptychMotion;
+  /**
+   * Sens de défilement de chaque section : `"up"`, la section monte et la vue suivante arrive par le
+   * bas ; `"down"`, elle descend et la vue suivante arrive par le haut. Défaut : `["up", "down", "up"]`
+   * en mode `"scrub"` (les bords montent, le centre descend), `["down", "up", "down"]` en mode `"steps"`.
    */
   directions?: [TriptychDirection, TriptychDirection, TriptychDirection];
   /**
-   * L'ordre dans lequel les sections se relaient à chaque étape (indices 0, 1, 2 = gauche, centre,
-   * droite). Défaut `[0, 2, 1]` : la gauche, puis la droite, puis le centre.
+   * Mode `"steps"` seulement : l'ordre dans lequel les sections se relaient à chaque étape (indices
+   * 0, 1, 2 = gauche, centre, droite). Défaut `[0, 2, 1]` : la gauche, puis la droite, puis le centre.
    */
   order?: [number, number, number];
   /** Hauteur du cadre collé à l'écran (toute valeur CSS). Défaut `"100vh"`. */
@@ -69,22 +86,24 @@ export interface TriptychScrollProps {
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
 /**
- * Trois sections côte à côte qui se relaient au défilement de la page, sans jamais bouger ensemble.
+ * Trois sections côte à côte qui amènent leurs vues suivantes au défilement de la page.
  *
- * Le composant est plus haut que l'écran ; son cadre reste collé pendant qu'on fait défiler, et
- * chaque cran de défilement fait avancer les sections **l'une après l'autre** — la gauche descend,
- * puis la droite, puis le centre monte (ordre et sens réglables) — pour amener la vue suivante de
- * chacune. Les informations arrivent ainsi par vagues, chaque section racontant sa propre suite.
+ * Le composant est plus haut que l'écran ; son cadre reste collé pendant qu'on fait défiler. Par
+ * défaut (`motion="scrub"`), les trois sections suivent la molette **en continu et ensemble** : les
+ * bords montent pendant que le centre descend, chacun découvrant sa vue suivante, et tout s'arrête
+ * là où le défilement s'arrête. Avec `motion="steps"`, chaque section bascule entière vers sa vue
+ * suivante l'une après l'autre (la gauche, puis la droite, puis le centre) une fois son seuil passé.
  *
- * Une section ne s'arrête jamais à mi-chemin : passé son seuil, elle bascule entière vers sa vue
- * suivante par une animation de 0,9 s (aucune sous `prefers-reduced-motion`), et revient en arrière
- * de la même façon quand on remonte. La position est lue dans la géométrie (où est le cadre collé
- * dans le composant), donc tout conteneur qui défile convient, pas seulement la fenêtre.
+ * Sous `prefers-reduced-motion`, aucune translation : la vue la plus proche remplace l'autre d'un
+ * coup. La position est lue dans la géométrie (où est le cadre collé dans le composant), donc tout
+ * conteneur qui défile convient, pas seulement la fenêtre. Les positions sont écrites directement
+ * sur les pistes (transformations), sans nouveau rendu à chaque image.
  */
 export function TriptychScroll({
   sections: sectionsProp,
   background,
-  directions = ["down", "up", "down"],
+  motion = "scrub",
+  directions: directionsProp,
   order = [0, 2, 1],
   height = "100vh",
   stickyTop = "0px",
@@ -96,6 +115,8 @@ export function TriptychScroll({
   className,
   style,
 }: TriptychScrollProps) {
+  const directions = directionsProp ?? (motion === "scrub" ? (["up", "down", "up"] as const) : (["down", "up", "down"] as const));
+  const scrub = motion === "scrub";
   const rootRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const trackRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -133,11 +154,14 @@ export function TriptychScroll({
     if (!root || !frame) return;
     // Rang de chaque section dans l'ordre de relève.
     const rank = [0, 1, 2].map((c) => Math.max(0, order.indexOf(c)));
-    const current = [-1, -1, -1];
+    const current = [NaN, NaN, NaN];
     let raf = 0;
     let lastStep = -1;
 
     const targetFor = (u: number, c: number) => {
+      // Suivi continu : la position de la piste est l'avancement lui-même, fractions comprises.
+      // Moins d'animations : la vue la plus proche, sans entre-deux.
+      if (scrub) return Math.min(counts[c] - 1, reducedMotion ? Math.round(u) : u);
       const k = Math.floor(u);
       const f = u - k;
       // Chaque section bascule entière vers sa vue suivante quand le défilement passe son seuil dans
@@ -165,7 +189,8 @@ export function TriptychScroll({
         const index = directions[c] === "down" ? n - 1 - target : target;
         track.style.transform = `translate3d(0, ${(-index * 100) / n}%, 0)`;
       }
-      const step = Math.min(steps, Math.floor(u + 0.1));
+      // « scrub » : la vue qui arrive (1 dès que le défilement commence) ; « steps » : l'étape atteinte.
+      const step = Math.min(steps, scrub ? Math.max(0, Math.ceil(u - 0.02)) : Math.floor(u + 0.1));
       if (step !== lastStep) {
         lastStep = step;
         setState({ step, steps, progress });
@@ -186,7 +211,7 @@ export function TriptychScroll({
     };
     // counts / directions / order : des tableaux recréés à chaque rendu, comparés par leur contenu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [steps, counts.join(), directions.join(), order.join(), frameHeight]);
+  }, [steps, counts.join(), directions.join(), order.join(), frameHeight, scrub, reducedMotion]);
 
   // Les trois vidéos du fond commun restent calées sur la première (même fichier, trois lecteurs).
   useEffect(() => {
@@ -205,7 +230,7 @@ export function TriptychScroll({
   return (
     <section
       ref={rootRef}
-      className={["lq-triptych", className].filter(Boolean).join(" ")}
+      className={["lq-triptych", scrub && "lq-triptych--scrub", className].filter(Boolean).join(" ")}
       style={{ ...style, height: total }}
       aria-label={ariaLabel}
     >

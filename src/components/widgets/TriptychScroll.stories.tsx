@@ -7,8 +7,9 @@ import { Sparkline } from "../charts/Sparkline";
 import { ARCHITECTURE_PHOTOS, INTERIOR_PHOTOS, LANDSCAPE_PHOTOS, photoUrl } from "../../test-data/showcasePhotos";
 
 /**
- * Trois sections côte à côte qui se relaient au défilement : faites défiler la page. À chaque cran,
- * la gauche descend, puis la droite, puis le centre monte, chacune amenant sa vue suivante.
+ * Trois sections côte à côte qui amènent leurs vues suivantes au défilement : faites défiler la page.
+ * Par défaut, elles suivent la molette en continu et ensemble (les bords montent, le centre
+ * descend) ; `motion="steps"` les fait basculer l'une après l'autre, par paliers.
  */
 const meta: Meta<typeof TriptychScroll> = {
   title: "Widgets/TriptychScroll",
@@ -115,8 +116,6 @@ export const TableauDeBord: Story = {
         note("Prochaine étape", "Relancer les clients inactifs depuis trois mois avec l'offre de printemps.", [2, 3, 3, 4, 4, 5, 6]),
       ],
     ],
-    directions: ["up", "down", "up"],
-    order: [1, 0, 2],
     height: "560px",
     stickyTop: "24px",
     gap: 12,
@@ -155,6 +154,26 @@ export const FondVideo: Story = {
       <Intro>Faites défiler ↓</Intro>
       <TriptychScroll {...args} />
       <Intro>Fin.</Intro>
+    </div>
+  ),
+};
+
+/** `motion="steps"` : chaque section bascule entière vers sa vue suivante (0,9 s) une fois son seuil passé, l'une
+ *  après l'autre — la gauche, puis la droite, puis le centre. */
+export const ParPaliers: Story = {
+  args: {
+    sections: [left, center, right],
+    motion: "steps",
+    height: "calc(100vh - 24px)",
+    stickyTop: "12px",
+    gap: 8,
+    ariaLabel: "Présentation par paliers",
+  },
+  render: (args) => (
+    <div style={{ padding: "0 12px" }}>
+      <Intro>Faites défiler ↓</Intro>
+      <TriptychScroll {...args} />
+      <Intro>Fin de la séquence.</Intro>
     </div>
   ),
 };

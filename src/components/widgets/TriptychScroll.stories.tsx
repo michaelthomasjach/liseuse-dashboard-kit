@@ -158,6 +158,21 @@ export const FondVideo: Story = {
   ),
 };
 
+/** `background.embed` : une chaîne en direct (lecteur intégré) répartie sur les trois sections, découpée à leur
+ *  forme ; elle s'efface dès que le défilement commence. */
+export const ChaineEnDirect: Story = {
+  ...FondVideo,
+  args: {
+    ...FondVideo.args,
+    background: {
+      embed: {
+        src: "https://www.youtube-nocookie.com/embed/live_stream?channel=UCIALMKvObZNtJ6AmdCLP7Lg&autoplay=1&mute=1&controls=0&playsinline=1&rel=0",
+        title: "Bloomberg en direct",
+      },
+    },
+  },
+};
+
 /** `motion="steps"` : chaque section bascule entière vers sa vue suivante (0,9 s) une fois son seuil passé, l'une
  *  après l'autre — la gauche, puis la droite, puis le centre. */
 export const ParPaliers: Story = {

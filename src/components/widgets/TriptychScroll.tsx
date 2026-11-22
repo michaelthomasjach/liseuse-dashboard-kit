@@ -28,6 +28,27 @@ export interface TriptychBackground {
   image?: string;
   /** Texte alternatif ; vide par défaut (fond décoratif). */
   alt?: string;
+  /**
+   * Un lecteur intégré (iframe) à la place de la vidéo : une chaîne en direct, par exemple. Un seul lecteur
+   * pour les trois sections, découpé à leur forme (angles arrondis compris) et posé par-dessus leur première
+   * vue ; il couvre toute la largeur du cadre au format `ratio` et s'efface dès que le défilement commence.
+   * Il ne reçoit pas le pointeur : le son et le reste se pilotent depuis la page (API du lecteur).
+   */
+  embed?: TriptychEmbed;
+}
+
+export interface TriptychEmbed {
+  /** Adresse du lecteur (iframe), lecture automatique et sans le son à prévoir dans l'adresse. */
+  src: string;
+  /** Nom accessible du lecteur (« Bloomberg en direct »). */
+  title: string;
+  /** Proportion de l'image (largeur ÷ hauteur). Défaut 16/9. */
+  ratio?: number;
+  /**
+   * Ce que l'image garde quand elle déborde du cadre en hauteur : `"center"` (défaut) rogne en haut et en bas,
+   * `"bottom"` garde le bas (bandeau de titres d'une chaîne d'info) et rogne le haut, `"top"` l'inverse.
+   */
+  align?: "center" | "top" | "bottom";
 }
 
 export interface TriptychScrollProps {
@@ -122,6 +143,8 @@ export function TriptychScroll({
   const trackRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [frameHeight, setFrameHeight] = useState(0);
   const [frameWidth, setFrameWidth] = useState(0);
+  // Arrondi des sections, lu dans le style (variable du thème) : le lecteur intégré est découpé à leur forme.
+  const [sectionRadius, setSectionRadius] = useState(0);
   const reducedMotion = useReducedMotion();
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   // Le fond commun est la première vue de chaque section.
@@ -138,13 +161,19 @@ export function TriptychScroll({
   useLayoutEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
+    const readRadius = () => {
+      const section = frame.querySelector<HTMLElement>(".lq-triptych__section");
+      setSectionRadius(section ? parseFloat(getComputedStyle(section).borderTopLeftRadius) || 0 : 0);
+    };
     const ro = new ResizeObserver(() => {
       setFrameHeight(frame.clientHeight);
       setFrameWidth(frame.clientWidth);
+      readRadius();
     });
     setFrameWidth(frame.clientWidth);
     ro.observe(frame);
     setFrameHeight(frame.clientHeight);
+    readRadius();
     return () => ro.disconnect();
   }, []);
 
@@ -265,6 +294,9 @@ export function TriptychScroll({
             </div>
           );
         })}
+        {background?.embed && frameWidth > 0 && frameHeight > 0 && (
+          <TriptychLive embed={background.embed} width={frameWidth} height={frameHeight} gap={gap} radius={sectionRadius} away={state.step > 0} />
+        )}
         {overlayNode != null && <div className="lq-triptych__overlay">{overlayNode}</div>}
       </div>
     </section>
@@ -283,6 +315,47 @@ function useReducedMotion() {
     return () => mql.removeEventListener("change", onChange);
   }, []);
   return reduced;
+}
+
+/** Contour des trois sections (rectangles aux angles arrondis), en un seul chemin pour `clip-path`. */
+function sectionsPath(width: number, height: number, gap: number, radius: number) {
+  const w = (width - 2 * gap) / 3;
+  const r = Math.max(0, Math.min(radius, w / 2, height / 2));
+  const n = (v: number) => Math.round(v * 100) / 100;
+  return [0, 1, 2]
+    .map((c) => {
+      const x = c * (w + gap);
+      return (
+        `M${n(x + r)} 0H${n(x + w - r)}A${n(r)} ${n(r)} 0 0 1 ${n(x + w)} ${n(r)}V${n(height - r)}` +
+        `A${n(r)} ${n(r)} 0 0 1 ${n(x + w - r)} ${n(height)}H${n(x + r)}A${n(r)} ${n(r)} 0 0 1 ${n(x)} ${n(height - r)}` +
+        `V${n(r)}A${n(r)} ${n(r)} 0 0 1 ${n(x + r)} 0Z`
+      );
+    })
+    .join("");
+}
+
+/**
+ * Le lecteur intégré commun : un seul iframe sur toute la largeur du cadre, au format de son image et
+ * recadré pour couvrir le cadre, découpé à la forme des trois sections. Il s'efface quand on défile.
+ */
+function TriptychLive({ embed, width, height, gap, radius, away }: { embed: TriptychEmbed; width: number; height: number; gap: number; radius: number; away: boolean }) {
+  const ratio = embed.ratio ?? 16 / 9;
+  // Couvrir le cadre : la plus petite taille au bon format qui le remplit, centrée.
+  const w = Math.max(width, height * ratio);
+  const h = w / ratio;
+  return (
+    <div className={["lq-triptych__live", away && "is-away"].filter(Boolean).join(" ")} style={{ clipPath: `path("${sectionsPath(width, height, gap, radius)}")` }}>
+      <iframe
+        className="lq-triptych__live-player"
+        src={embed.src}
+        title={embed.title}
+        style={{ width: w, height: h, left: (width - w) / 2, top: embed.align === "bottom" ? height - h : embed.align === "top" ? 0 : (height - h) / 2 }}
+        allow="autoplay; encrypted-media; picture-in-picture"
+        referrerPolicy="strict-origin-when-cross-origin"
+        tabIndex={-1}
+      />
+    </div>
+  );
 }
 
 /** La part du fond commun qui revient à une section : le média à la largeur du cadre, décalé de la colonne. */

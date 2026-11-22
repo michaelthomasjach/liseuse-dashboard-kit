@@ -58,6 +58,30 @@
   object-fit: cover;
 }
 
+/* Le lecteur intégré commun (chaîne en direct…) : au-dessus des sections, sous la couche du dessus, découpé
+   à leur forme (clip-path en ligne). Il s'efface dès que le défilement commence. */
+.lq-triptych__live {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  background-color: #000;
+  transition: opacity 450ms ease, visibility 0s linear 0s;
+}
+
+.lq-triptych__live.is-away {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 450ms ease, visibility 0s linear 450ms;
+}
+
+.lq-triptych__live-player {
+  position: absolute;
+  max-width: none;
+  border: 0;
+}
+
 .lq-triptych__overlay {
   position: absolute;
   inset: 0;

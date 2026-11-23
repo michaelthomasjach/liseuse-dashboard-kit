@@ -38,6 +38,7 @@
 }
 
 .lq-floating-nav__list {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -46,7 +47,85 @@
   list-style: none;
 }
 
+/* La bulle de survol : cachée ici, un thème l'allume (`display: block`) et lui donne sa matière
+   (`--lq-floating-nav-bubble-*`). Ses bords haut et bas sont posés séparément par FloatingNav : celui
+   qui part vers l'entrée survolée devance l'autre, avec un léger dépassement élastique, et la bulle
+   s'étire un instant pendant le trajet, comme une goutte. Elle passe sous les libellés. */
+.lq-floating-nav__bubble {
+  display: none;
+  position: absolute;
+  z-index: 0;
+  left: var(--lq-floating-nav-bubble-left, -8px);
+  right: var(--lq-floating-nav-bubble-right, -8px);
+  pointer-events: none;
+  border-radius: var(--lq-floating-nav-bubble-radius, 999px);
+  background: var(--lq-floating-nav-bubble-bg, var(--lq-color-hover));
+  box-shadow: var(--lq-floating-nav-bubble-shadow, none);
+  transform-origin: 50% 50%;
+  transition: opacity 180ms ease;
+}
+
+.lq-floating-nav__bubble[data-state="hidden"] {
+  opacity: 0;
+}
+
+.lq-floating-nav__bubble[data-dir="down"] {
+  transition:
+    bottom 360ms cubic-bezier(0.3, 1.32, 0.5, 1),
+    top 540ms cubic-bezier(0.45, 1.18, 0.42, 1) 60ms,
+    opacity 180ms ease;
+}
+
+.lq-floating-nav__bubble[data-dir="up"] {
+  transition:
+    top 360ms cubic-bezier(0.3, 1.32, 0.5, 1),
+    bottom 540ms cubic-bezier(0.45, 1.18, 0.42, 1) 60ms,
+    opacity 180ms ease;
+}
+
+/* Deux animations identiques sous deux noms : FloatingNav alterne `a` et `b` à chaque déplacement,
+   ce qui relance l'étirement même si l'on passe à une autre entrée pendant le précédent. */
+.lq-floating-nav__bubble[data-dir="up"][data-squish="a"],
+.lq-floating-nav__bubble[data-dir="down"][data-squish="a"] {
+  animation: lq-floating-nav-drop-a 600ms cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+.lq-floating-nav__bubble[data-dir="up"][data-squish="b"],
+.lq-floating-nav__bubble[data-dir="down"][data-squish="b"] {
+  animation: lq-floating-nav-drop-b 600ms cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+@keyframes lq-floating-nav-drop-a {
+  0% { transform: scale(1, 1); }
+  30% { transform: scale(0.94, 1.08); }
+  62% { transform: scale(1.02, 0.97); }
+  100% { transform: scale(1, 1); }
+}
+
+@keyframes lq-floating-nav-drop-b {
+  0% { transform: scale(1, 1); }
+  30% { transform: scale(0.94, 1.08); }
+  62% { transform: scale(1.02, 0.97); }
+  100% { transform: scale(1, 1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-floating-nav__bubble {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Pas de survol sur un écran tactile. */
+@media (hover: none) {
+  .lq-floating-nav__bubble {
+    display: none !important;
+  }
+}
+
 .lq-floating-nav__item {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: var(--lq-space-2);
@@ -141,6 +220,11 @@
 
   .lq-floating-nav--fixed .lq-floating-nav__dot {
     display: none;
+  }
+
+  /* Rangée de pastilles qui défile : l'entrée active a déjà sa pastille, pas de bulle de survol. */
+  .lq-floating-nav--fixed .lq-floating-nav__bubble {
+    display: none !important;
   }
 
   .lq-floating-nav--fixed .lq-floating-nav__item--active {

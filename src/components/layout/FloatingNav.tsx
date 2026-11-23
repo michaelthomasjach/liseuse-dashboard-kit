@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, type FocusEvent, type ReactNode } from "react";
 import "./FloatingNav.css";
 
 export interface FloatingNavItem {
@@ -50,17 +50,65 @@ export function FloatingNav({ items, title, side = "left", placement = "fixed", 
     if (!active) return;
     list.scrollLeft = active.offsetLeft - (list.clientWidth - active.offsetWidth) / 2;
   }, [activeId]);
+  // Bulle de survol (`.lq-floating-nav__bubble`), cachée par défaut : un thème l'allume en CSS (le thème Liquid le
+  // fait). Elle se pose sous l'entrée survolée (ou atteinte au clavier) et glisse d'une entrée à l'autre comme une
+  // goutte : le bord qui part vers la nouvelle entrée devance l'autre (`data-dir`), et la bulle s'étire un instant
+  // puis se remet en place (`data-squish`, qui alterne pour relancer l'animation). Elle s'efface quand le pointeur
+  // quitte la liste ; elle réapparaît sur place, sans glisser depuis l'entrée d'avant.
+  const bubbleRef = useRef<HTMLLIElement>(null);
+  const lastBubble = useRef<{ top: number; bottom: number } | null>(null);
+  const moveBubble = useCallback((item: HTMLElement | null) => {
+    const list = listRef.current;
+    const bubble = bubbleRef.current;
+    if (!list || !bubble) return;
+    if (!item) {
+      bubble.dataset.state = "hidden";
+      return;
+    }
+    const next = { top: item.offsetTop, bottom: list.clientHeight - (item.offsetTop + item.offsetHeight) };
+    const before = lastBubble.current;
+    const moving = bubble.dataset.state === "shown" && before !== null && before.top !== next.top;
+    bubble.dataset.dir = moving ? (next.top > before.top ? "down" : "up") : "none";
+    if (moving) bubble.dataset.squish = bubble.dataset.squish === "a" ? "b" : "a";
+    bubble.style.top = `${next.top}px`;
+    bubble.style.bottom = `${next.bottom}px`;
+    bubble.dataset.state = "shown";
+    lastBubble.current = next;
+  }, []);
+  const focusVisible = (el: HTMLElement) => {
+    try {
+      return el.matches(":focus-visible");
+    } catch {
+      return false;
+    }
+  };
   const classes = ["lq-floating-nav", `lq-floating-nav--${side}`, `lq-floating-nav--${placement}`, className].filter(Boolean).join(" ");
   return (
     <nav className={classes} aria-label={ariaLabel}>
       {title && <div className="lq-floating-nav__title">{title}</div>}
-      <ul ref={listRef} className="lq-floating-nav__list">
+      <ul
+        ref={listRef}
+        className="lq-floating-nav__list"
+        onPointerLeave={() => {
+          const focused = listRef.current?.querySelector<HTMLElement>(".lq-floating-nav__item:focus");
+          moveBubble(focused && focusVisible(focused) ? focused : null);
+        }}
+        onBlur={(e: FocusEvent<HTMLUListElement>) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) moveBubble(null);
+        }}
+      >
         {items.map((item) => (
           <li key={item.id}>
             <a
               href={item.href ?? "#"}
               className={["lq-floating-nav__item", item.active && "lq-floating-nav__item--active"].filter(Boolean).join(" ")}
               aria-current={item.active ? "page" : undefined}
+              onPointerEnter={(e) => {
+                if (e.pointerType !== "touch") moveBubble(e.currentTarget);
+              }}
+              onFocus={(e) => {
+                if (focusVisible(e.currentTarget)) moveBubble(e.currentTarget);
+              }}
               onClick={(e) => {
                 if (item.onClick) {
                   e.preventDefault();
@@ -75,6 +123,7 @@ export function FloatingNav({ items, title, side = "left", placement = "fixed", 
             </a>
           </li>
         ))}
+        <li ref={bubbleRef} className="lq-floating-nav__bubble" role="presentation" aria-hidden="true" data-state="hidden" />
       </ul>
     </nav>
   );

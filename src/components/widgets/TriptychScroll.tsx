@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
 import "./TriptychScroll.css";
 
 export type TriptychDirection = "up" | "down";
@@ -30,8 +30,9 @@ export interface TriptychBackground {
   alt?: string;
   /**
    * Un lecteur intégré (iframe) à la place de la vidéo : une chaîne en direct, par exemple. Un seul lecteur
-   * pour les trois sections, découpé à leur forme (angles arrondis compris) et posé par-dessus leur première
-   * vue ; il couvre toute la largeur du cadre au format `ratio` et s'efface dès que le défilement commence.
+   * pour les trois sections, découpé à leur forme (angles arrondis compris) et posé sur leur première vue ; il
+   * couvre toute la largeur du cadre au format `ratio`. Au défilement, il reste à l'écran et suit les sections
+   * qui glissent : chacune n'en montre que la part encore couverte par sa première vue.
    * Il ne reçoit pas le pointeur : le son et le reste se pilotent depuis la page (API du lecteur).
    */
   embed?: TriptychEmbed;
@@ -147,6 +148,8 @@ export function TriptychScroll({
   const [sectionRadius, setSectionRadius] = useState(0);
   const reducedMotion = useReducedMotion();
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+  // Le lecteur intégré : la bande de chaque section encore couverte par sa première vue (découpe écrite au défilement).
+  const liveBandRef = useRef<HTMLDivElement>(null);
   // Le fond commun est la première vue de chaque section.
   const sections = (background
     ? sectionsProp.map((views, c) => [<TriptychBackdrop key="backdrop" background={background} column={c} gap={gap} frameWidth={frameWidth} reducedMotion={reducedMotion} videoRef={(v) => (videoRefs.current[c] = v)} />, ...views])
@@ -218,6 +221,9 @@ export function TriptychScroll({
         const index = directions[c] === "down" ? n - 1 - target : target;
         track.style.transform = `translate3d(0, ${(-index * 100) / n}%, 0)`;
       }
+      // Lecteur intégré : il suit la première vue de chaque section, qui glisse hors du cadre (vers le haut ou le bas).
+      const band = liveBandRef.current;
+      if (band) band.style.clipPath = `path("${bandsPath(fr.width, fr.height, gap, current, directions)}")`;
       // « scrub » : la vue qui arrive (1 dès que le défilement commence) ; « steps » : l'étape atteinte.
       const step = Math.min(steps, scrub ? Math.max(0, Math.ceil(u - 0.02)) : Math.floor(u + 0.1));
       if (step !== lastStep) {
@@ -240,7 +246,7 @@ export function TriptychScroll({
     };
     // counts / directions / order : des tableaux recréés à chaque rendu, comparés par leur contenu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [steps, counts.join(), directions.join(), order.join(), frameHeight, scrub, reducedMotion]);
+  }, [steps, counts.join(), directions.join(), order.join(), frameHeight, frameWidth, gap, scrub, reducedMotion, !!background?.embed]);
 
   // Les trois vidéos du fond commun restent calées sur la première (même fichier, trois lecteurs).
   useEffect(() => {
@@ -295,7 +301,7 @@ export function TriptychScroll({
           );
         })}
         {background?.embed && frameWidth > 0 && frameHeight > 0 && (
-          <TriptychLive embed={background.embed} width={frameWidth} height={frameHeight} gap={gap} radius={sectionRadius} away={state.step > 0} />
+          <TriptychLive embed={background.embed} width={frameWidth} height={frameHeight} gap={gap} radius={sectionRadius} bandRef={liveBandRef} />
         )}
         {overlayNode != null && <div className="lq-triptych__overlay">{overlayNode}</div>}
       </div>
@@ -335,16 +341,38 @@ function sectionsPath(width: number, height: number, gap: number, radius: number
 }
 
 /**
- * Le lecteur intégré commun : un seul iframe sur toute la largeur du cadre, au format de son image et
- * recadré pour couvrir le cadre, découpé à la forme des trois sections. Il s'efface quand on défile.
+ * Part de chaque section encore couverte par sa première vue, en un chemin pour `clip-path` : `positions[c]` est la
+ * position de la piste (0 = première vue, 1 = vue suivante en place…) ; « up » fait sortir la vue par le haut,
+ * « down » par le bas. Toujours trois rectangles (éventuellement vides) : la découpe s'anime d'une étape à l'autre.
  */
-function TriptychLive({ embed, width, height, gap, radius, away }: { embed: TriptychEmbed; width: number; height: number; gap: number; radius: number; away: boolean }) {
+function bandsPath(width: number, height: number, gap: number, positions: number[], directions: readonly TriptychDirection[]) {
+  const w = (width - 2 * gap) / 3;
+  const n = (v: number) => Math.round(v * 100) / 100;
+  return [0, 1, 2]
+    .map((c) => {
+      const t = Math.max(0, Math.min(1, Number.isFinite(positions[c]) ? positions[c] : 0));
+      const offset = directions[c] === "down" ? t * height : -t * height;
+      const y0 = Math.max(0, offset);
+      const y1 = Math.max(y0, Math.min(height, offset + height));
+      const x = c * (w + gap);
+      return `M${n(x)} ${n(y0)}H${n(x + w)}V${n(y1)}H${n(x)}Z`;
+    })
+    .join("");
+}
+
+/**
+ * Le lecteur intégré commun : un seul iframe sur toute la largeur du cadre, au format de son image et recadré pour
+ * couvrir le cadre, découpé à la forme des trois sections, puis à la part de chacune que couvre encore sa première
+ * vue (`bandRef`, écrit au défilement) : il glisse avec les sections au lieu de disparaître.
+ */
+function TriptychLive({ embed, width, height, gap, radius, bandRef }: { embed: TriptychEmbed; width: number; height: number; gap: number; radius: number; bandRef: Ref<HTMLDivElement> }) {
   const ratio = embed.ratio ?? 16 / 9;
   // Couvrir le cadre : la plus petite taille au bon format qui le remplit, centrée.
   const w = Math.max(width, height * ratio);
   const h = w / ratio;
   return (
-    <div className={["lq-triptych__live", away && "is-away"].filter(Boolean).join(" ")} style={{ clipPath: `path("${sectionsPath(width, height, gap, radius)}")` }}>
+    <div className="lq-triptych__live" style={{ clipPath: `path("${sectionsPath(width, height, gap, radius)}")` }}>
+      <div ref={bandRef} className="lq-triptych__live-band">
       <iframe
         className="lq-triptych__live-player"
         src={embed.src}
@@ -354,6 +382,7 @@ function TriptychLive({ embed, width, height, gap, radius, away }: { embed: Trip
         referrerPolicy="strict-origin-when-cross-origin"
         tabIndex={-1}
       />
+      </div>
     </div>
   );
 }

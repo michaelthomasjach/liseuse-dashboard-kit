@@ -59,21 +59,31 @@
 }
 
 /* Le lecteur intégré commun (chaîne en direct…) : au-dessus des sections, sous la couche du dessus, découpé
-   à leur forme (clip-path en ligne). Il s'efface dès que le défilement commence. */
+   à leur forme (clip-path en ligne), puis à la part de chacune que couvre encore sa première vue (bande). */
 .lq-triptych__live {
   position: absolute;
   inset: 0;
   z-index: 1;
   overflow: hidden;
   pointer-events: none;
-  background-color: #000;
-  transition: opacity 450ms ease, visibility 0s linear 0s;
 }
 
-.lq-triptych__live.is-away {
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 450ms ease, visibility 0s linear 450ms;
+.lq-triptych__live-band {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: #000;
+}
+
+/* Relève par étapes : la bande suit la piste animée, au même rythme. */
+.lq-triptych:not(.lq-triptych--scrub) .lq-triptych__live-band {
+  transition: clip-path var(--lq-triptych-duration, 900ms) cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-triptych__live-band {
+    transition: none;
+  }
 }
 
 .lq-triptych__live-player {

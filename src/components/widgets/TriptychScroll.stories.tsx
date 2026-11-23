@@ -159,7 +159,7 @@ export const FondVideo: Story = {
 };
 
 /** `background.embed` : une chaîne en direct (lecteur intégré) répartie sur les trois sections, découpée à leur
- *  forme ; elle s'efface dès que le défilement commence. */
+ *  forme ; au défilement, elle reste à l'écran et glisse avec les sections. */
 export const ChaineEnDirect: Story = {
   ...FondVideo,
   args: {

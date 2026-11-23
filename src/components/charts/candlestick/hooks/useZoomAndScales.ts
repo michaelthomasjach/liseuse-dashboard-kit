@@ -257,15 +257,29 @@ export function useZoomAndScales({
   // been the one, see useHoverSync's own effectiveHoverIndex) still need to clamp it themselves —
   // this only fixes *positioning* math (zoomedXScale(indexForDate(x) + 0.5) and friends), not
   // array access.
+  // Pas d'une case hors des bougies : l'écart le plus courant entre deux bougies (médiane), pas la moyenne de tout
+  // l'historique — en 5 minutes, les nuits et les week-ends portaient la moyenne vers 14 minutes, et la date sous le
+  // réticule, à droite de la dernière bougie, avançait de 14 minutes par case au lieu de 5.
+  const extrapolationSpacingMs = useMemo(() => {
+    const gaps: number[] = [];
+    for (let i = 1; i < data.length; i++) {
+      const gap = data[i].date.getTime() - data[i - 1].date.getTime();
+      if (gap > 0) gaps.push(gap);
+    }
+    if (gaps.length === 0) return 0;
+    gaps.sort((a, b) => a - b);
+    return gaps[Math.floor(gaps.length / 2)];
+  }, [data]);
+
   const indexForDate = useCallback(
     (date: Date): number => {
       if (data.length === 0) return 0;
       const first = data[0].date;
       const last = data[data.length - 1].date;
       if (data.length > 1 && (date.getTime() < first.getTime() || date.getTime() > last.getTime())) {
-        // Average spacing across the *whole* dataset, not just the two edge candles — an
-        // irregular gap right at one edge (e.g. a holiday) shouldn't skew the extrapolated rate.
-        const avgSpacingMs = (last.getTime() - first.getTime()) / (data.length - 1);
+        // Typical spacing across the *whole* dataset (see extrapolationSpacingMs), not just the two
+        // edge candles — an irregular gap right at one edge (e.g. a holiday) shouldn't skew the rate.
+        const avgSpacingMs = extrapolationSpacingMs;
         if (avgSpacingMs > 0) {
           return date.getTime() < first.getTime()
             ? (date.getTime() - first.getTime()) / avgSpacingMs
@@ -275,7 +289,7 @@ export function useZoomAndScales({
       const idx = d3.bisector<Candle, Date>((d) => d.date).left(data, date);
       return Math.min(data.length - 1, Math.max(0, idx));
     },
-    [data]
+    [data, extrapolationSpacingMs]
   );
 
   // The exact inverse of indexForDate's own extrapolation above — same reasoning, same
@@ -295,7 +309,7 @@ export function useZoomAndScales({
       if (data.length > 1 && (rawEdgeIndex < 0 || rawEdgeIndex > data.length - 1)) {
         const first = data[0].date;
         const last = data[data.length - 1].date;
-        const avgSpacingMs = (last.getTime() - first.getTime()) / (data.length - 1);
+        const avgSpacingMs = extrapolationSpacingMs;
         if (avgSpacingMs > 0) {
           const ms = rawEdgeIndex < 0 ? first.getTime() + rawEdgeIndex * avgSpacingMs : last.getTime() + (rawEdgeIndex - (data.length - 1)) * avgSpacingMs;
           return new Date(ms);
@@ -304,7 +318,7 @@ export function useZoomAndScales({
       const clamped = Math.min(data.length - 1, Math.max(0, Math.round(rawEdgeIndex)));
       return data[clamped].date;
     },
-    [data]
+    [data, extrapolationSpacingMs]
   );
 
   // Precise (unpadded) index range of candles actually inside the zoomed domain — used to size

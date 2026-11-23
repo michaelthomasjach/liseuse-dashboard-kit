@@ -14,11 +14,11 @@ import { drawIndicatorProjections } from "./drawIndicatorProjections";
 import { drawReplayMask } from "./drawReplayMask";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 
-/** The six fields that follow the mouse. The main canvas is painted without them; the crosshair
+/** The fields that follow the mouse. The main canvas is painted without them; the crosshair
  *  they describe goes on its own thin canvas above it (`renderCrosshair`), so moving the mouse
  *  repaints a few dashed lines instead of every candle, pane and drawing. */
-export const HOVER_PARAM_KEYS = ["hovered", "hoverY", "hoverVolumeY", "hoverIndicatorPaneId", "hoverIndicatorPaneY", "hoverIndex"] as const;
-const NO_HOVER = { hovered: null, hoverY: null, hoverVolumeY: null, hoverIndicatorPaneId: null, hoverIndicatorPaneY: null, hoverIndex: null };
+export const HOVER_PARAM_KEYS = ["hovered", "hoverY", "hoverVolumeY", "hoverIndicatorPaneId", "hoverIndicatorPaneY", "hoverIndex", "crosshairIndex"] as const;
+const NO_HOVER = { hovered: null, hoverY: null, hoverVolumeY: null, hoverIndicatorPaneId: null, hoverIndicatorPaneY: null, hoverIndex: null, crosshairIndex: null };
 
 /** Sizes a canvas backing store to its CSS box, only when it actually changed: assigning
  *  `width`/`height` reallocates and clears the whole bitmap even with an identical value. */
@@ -114,6 +114,10 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
  *  the same lines over itself for that very reason). */
 export function renderCrosshair(canvas: HTMLCanvasElement, params: RenderCandlestickChartParams, style: ChartCanvasStyle | null) {
   const { dims, plotBoundedHeight, hovered, hoverIndex, hoverY, hoverVolumeY, hoverIndicatorPaneId, hoverIndicatorPaneY } = params;
+  // Réticule dans l'espace vide à droite de la dernière bougie (ou à gauche de la première) : pas de bougie sous la
+  // ligne verticale, donc pas de lignes de valeur dans les autres sections.
+  const crosshairIndex = params.crosshairIndex ?? hoverIndex;
+  const outsideData = crosshairIndex !== hoverIndex;
   if (dims.boundedWidth <= 0 || plotBoundedHeight <= 0) return;
   const dpr = window.devicePixelRatio || 1;
   fitCanvas(canvas, dims.boundedWidth, plotBoundedHeight, dpr);
@@ -152,7 +156,7 @@ export function renderCrosshair(canvas: HTMLCanvasElement, params: RenderCandles
   // Les autres sections que celle du pointeur : une ligne à leur valeur à la bougie survolée, là où leur axe affiche
   // déjà son étiquette (ChartHoverBadges) — le cours de clôture sur le graphique principal, le volume, chaque courbe
   // d'un panneau (RSI, MACD et signal… ; pas l'histogramme, qui n'est pas une ligne).
-  if (hoverIndex !== null) {
+  if (hoverIndex !== null && !outsideData) {
     if (hoverY === null) {
       const y = params.zoomedPriceScale(hovered.close);
       if (y >= 0 && y <= params.priceHeight) hline(0, params.priceHeight, y);
@@ -179,12 +183,14 @@ export function renderCrosshair(canvas: HTMLCanvasElement, params: RenderCandles
       }
     });
   }
-  if (hoverIndex !== null) {
-    const hx = params.zoomedXScale(hoverIndex + 0.5);
-    ctx.beginPath();
-    ctx.moveTo(hx, 0);
-    ctx.lineTo(hx, plotBoundedHeight);
-    ctx.stroke();
+  if (crosshairIndex !== null) {
+    const hx = params.zoomedXScale(crosshairIndex + 0.5);
+    if (hx >= 0 && hx <= dims.boundedWidth) {
+      ctx.beginPath();
+      ctx.moveTo(hx, 0);
+      ctx.lineTo(hx, plotBoundedHeight);
+      ctx.stroke();
+    }
   }
   ctx.restore();
 }

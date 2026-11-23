@@ -81,6 +81,8 @@ export interface RenderCandlestickChartParams {
   hoverIndicatorPaneId: string | null;
   hoverIndicatorPaneY: number | null;
   hoverIndex: number | null;
+  /** Case du réticule vertical : comme hoverIndex, mais sans borne (espace vide à droite de la dernière bougie). */
+  crosshairIndex?: number | null;
   visibleDrawings: TrendLineDrawing[];
   hoveredDrawingId: string | null;
   /** Dessins sélectionnés : leur étiquette d'unité de temps reste affichée, ramenée au bord, même quand

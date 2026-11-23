@@ -13,6 +13,8 @@ export interface UseAddLineHandlersArgs {
   hoverVolumeY: number | null;
   zoomedVolumeScale: d3.ScaleLinear<number, number>;
   hovered: Candle | null;
+  /** Date sous le réticule, extrapolée dans l'espace vide à droite de la dernière bougie. */
+  crosshairDate?: Date | null;
   priceScale: d3.ScaleLinear<number, number>;
   hoverIndicatorPaneId: string | null;
   hoverIndicatorPaneY: number | null;
@@ -38,6 +40,7 @@ export function useAddLineHandlers({
   hoverVolumeY,
   zoomedVolumeScale,
   hovered,
+  crosshairDate,
   priceScale,
   hoverIndicatorPaneId,
   hoverIndicatorPaneY,
@@ -70,9 +73,10 @@ export function useAddLineHandlers({
   }
 
   function addDateLine() {
-    if (!hovered) return;
+    const date = crosshairDate ?? hovered?.date;
+    if (!date) return;
     const [p0, p1] = priceScale.domain() as [number, number];
-    commitDrawings([...drawings, { id: `drawing-${drawingIdRef.current++}`, x1: hovered.date, y1: p0, x2: hovered.date, y2: p1, lineType: "vertical" }]);
+    commitDrawings([...drawings, { id: `drawing-${drawingIdRef.current++}`, x1: date, y1: p0, x2: date, y2: p1, lineType: "vertical" }]);
   }
 
   // Same idea as addPriceLine/addVolumeLine, generalized to whichever "own"-pane indicator

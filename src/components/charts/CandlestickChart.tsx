@@ -309,7 +309,8 @@ function CandlestickChartBody({
 }: CandlestickChartProps) {
   const clipId = useId();
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const hovered = hoverIndex !== null ? data[hoverIndex] : null;
+  // hoverIndex suit le pointeur sans borne (le réticule va dans l'espace vide à droite) : la bougie, elle, existe.
+  const hovered = hoverIndex !== null && data.length > 0 ? data[Math.min(data.length - 1, Math.max(0, hoverIndex))] : null;
 
   // Styles de dessin enregistrés (« types de lignes »), gardés par l'hôte, sinon dans ce navigateur : voir drawingStylePresets.
   const drawingStyles = useDrawingStylePresets({ defaultDrawingStylePresets, onDrawingStylePresetsChange });
@@ -1435,7 +1436,7 @@ function CandlestickChartBody({
   // coupé, son échelle fixe sur tout l'historique est le réglage choisi, pas un écart à signaler.
   const isYAxisManual = (paneId: string) => (paneId === "price" ? yAutoScalingState && !priceYAuto : paneId in paneYTransform);
 
-  const { effectiveHoverIndex, effectiveHovered, effectiveHoverY } = useHoverSync({ data, hoverIndex, indexForDate, dateForIndex, syncedHoverDate, onHoverDateChange, hoverY, zoomedPriceScale, clampToPriceAxis, syncedHoverPrice, onHoverPriceChange });
+  const { effectiveHoverIndex, effectiveHovered, effectiveHoverY, crosshairIndex, crosshairDate } = useHoverSync({ data, hoverIndex, indexForDate, dateForIndex, syncedHoverDate, onHoverDateChange, hoverY, zoomedPriceScale, clampToPriceAxis, syncedHoverPrice, onHoverPriceChange });
 
   const barRangeState = useBarRangeSelection({ data, timeframe, setVisibleCandleCount });
   rangeXZoomRef.current = barRangeState.noteXZoom;
@@ -1628,6 +1629,7 @@ function CandlestickChartBody({
     hoverVolumeY,
     zoomedVolumeScale,
     hovered,
+    crosshairDate,
     priceScale,
     hoverIndicatorPaneId,
     hoverIndicatorPaneY,
@@ -1816,6 +1818,7 @@ function CandlestickChartBody({
     hoverIndicatorPaneId,
     hoverIndicatorPaneY,
     hoverIndex: effectiveHoverIndex,
+    crosshairIndex,
     visibleDrawings: combinedVisibleDrawings,
     hoveredDrawingId,
     drawingTimeframeLabel,
@@ -3155,6 +3158,8 @@ function CandlestickChartBody({
           paneScaleAndOffset={paneScaleAndOffset}
           hovered={effectiveHovered}
           hoverIndex={effectiveHoverIndex}
+          crosshairIndex={crosshairIndex}
+          crosshairDate={crosshairDate}
           addDateLine={addDateLine}
           livePrice={livePrice}
           data={data}

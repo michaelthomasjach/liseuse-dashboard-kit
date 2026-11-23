@@ -53,6 +53,10 @@ export interface ChartHoverBadgesProps {
   hovered: Candle | null;
   zoomedXScale: d3.ScaleLinear<number, number>;
   hoverIndex: number | null;
+  /** Case et date du réticule vertical, sans borne : dans l'espace vide à droite de la dernière bougie, l'étiquette
+   *  de date suit le pointeur à la date extrapolée. Par défaut, la bougie survolée. */
+  crosshairIndex?: number | null;
+  crosshairDate?: Date | null;
   plotBoundedHeight: number;
   dFmt: (date: Date) => string;
   addDateLine: () => void;
@@ -124,6 +128,8 @@ export function ChartHoverBadges({
   hovered,
   zoomedXScale,
   hoverIndex,
+  crosshairIndex: crosshairIndexProp,
+  crosshairDate: crosshairDateProp,
   plotBoundedHeight,
   dFmt,
   addDateLine,
@@ -157,7 +163,13 @@ export function ChartHoverBadges({
   // in MACD, MACD's value while it is on the candles, and so on. The pane under the pointer keeps
   // its own cursor badge (with its "+"), so it is skipped here.
   const synced: SyncedBadge[] = [];
-  if (hovered && hoverIndex !== null) {
+  const crosshairIndex = crosshairIndexProp ?? hoverIndex;
+  const crosshairDate = crosshairDateProp ?? hovered?.date ?? null;
+  // Pointeur hors des bougies (espace vide à droite) : aucune bougie sous le réticule, donc pas de valeurs à badger.
+  const outsideData = crosshairIndex !== hoverIndex;
+  const crosshairLeft = crosshairIndex !== null ? zoomedXScale(crosshairIndex + 0.5) : NaN;
+  const crosshairVisible = crosshairLeft >= 0 && crosshairLeft <= dims.boundedWidth;
+  if (hovered && hoverIndex !== null && !outsideData) {
     const inRange = (scale: d3.ScaleLinear<number, number>, y: number) => {
       const [a, b] = scale.range();
       return Number.isFinite(y) && y >= Math.min(a, b) && y <= Math.max(a, b);
@@ -357,13 +369,13 @@ export function ChartHoverBadges({
           <span className="lq-chart__axis-value-text">{b.text}</span>
         </div>
       ))}
-      {hovered && (
+      {hovered && crosshairVisible && crosshairDate && (
         <>
           {gutter.timeVisible && <div
             className="lq-chart__axis-value lq-chart__axis-value--x lq-chart__axis-value--cursor"
-            style={{ left: dims.margin.left + zoomedXScale(hoverIndex! + 0.5), top: dims.margin.top + plotBoundedHeight }}
+            style={{ left: dims.margin.left + crosshairLeft, top: dims.margin.top + plotBoundedHeight }}
           >
-            <span className="lq-chart__axis-value-text">{dFmt(hovered.date)}</span>
+            <span className="lq-chart__axis-value-text">{dFmt(crosshairDate)}</span>
           </div>}
           {/* A standalone square button (not englobed by the date badge below the plot, since
               that badge is unreachable — reaching it means leaving the interactive rect
@@ -372,7 +384,7 @@ export function ChartHoverBadges({
           <button
             type="button"
             className="lq-chart__crosshair-add lq-chart__crosshair-add--x"
-            style={{ left: dims.margin.left + zoomedXScale(hoverIndex! + 0.5), top: dims.margin.top + plotBoundedHeight - CROSSHAIR_ADD_INSET }}
+            style={{ left: dims.margin.left + crosshairLeft, top: dims.margin.top + plotBoundedHeight - CROSSHAIR_ADD_INSET }}
             onClick={addDateLine}
             aria-label="Ajouter une ligne de date verticale"
           >

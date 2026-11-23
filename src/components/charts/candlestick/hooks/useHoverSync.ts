@@ -53,6 +53,16 @@ export function useHoverSync({
         ? Math.min(data.length - 1, Math.max(0, hoverIndex))
         : syncedHoverDate ? Math.min(data.length - 1, Math.max(0, Math.round(indexForDate(syncedHoverDate)))) : null;
   const effectiveHovered = effectiveHoverIndex !== null ? data[effectiveHoverIndex] : null;
+  // Le réticule, lui, suit le pointeur partout, y compris dans l'espace vide à droite de la dernière bougie (ou à
+  // gauche de la première) : sa ligne verticale et l'étiquette de date se placent sur la case survolée, à la date
+  // extrapolée, au lieu de rester collées à la dernière bougie. Les valeurs (OHLC, légendes) gardent la bougie bornée.
+  const crosshairIndex =
+    effectiveHoverIndex === null
+      ? null
+      : hoverIndex !== null
+        ? hoverIndex
+        : syncedHoverDate ? Math.round(indexForDate(syncedHoverDate)) : effectiveHoverIndex;
+  const crosshairDate = crosshairIndex === null ? null : crosshairIndex === effectiveHoverIndex ? effectiveHovered!.date : dateForIndex(crosshairIndex + 0.5);
 
   // Mirrors effectiveHoverIndex/effectiveHovered above, but for the horizontal price line: a
   // *price* (not a raw pixel) is what actually carries meaning across panels, since a pixel Y
@@ -83,7 +93,7 @@ export function useHoverSync({
   const onHoverDateChangeRef = useRef(onHoverDateChange);
   onHoverDateChangeRef.current = onHoverDateChange;
   useEffect(() => {
-    onHoverDateChangeRef.current?.(hoverIndex !== null ? dateForIndex(hoverIndex) : null);
+    onHoverDateChangeRef.current?.(hoverIndex !== null ? dateForIndex(hoverIndex + 0.5) : null);
   }, [hoverIndex, dateForIndex]);
 
   // Same ref trick as onHoverDateChangeRef above, for the same reason, plus one for
@@ -98,5 +108,5 @@ export function useHoverSync({
     onHoverPriceChangeRef.current?.(hoverY !== null ? zoomedPriceScaleRef.current.invert(hoverY) : null);
   }, [hoverY]);
 
-  return { effectiveHoverIndex, effectiveHovered, effectiveHoverY };
+  return { effectiveHoverIndex, effectiveHovered, effectiveHoverY, crosshairIndex, crosshairDate };
 }

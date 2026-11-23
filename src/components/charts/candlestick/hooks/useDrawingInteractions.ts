@@ -637,8 +637,10 @@ export function useDrawingInteractions({
   // contact (see its own caller) — far less precise than a mouse pointer — without touching
   // DRAWING_HIT_DISTANCE, mouse's own precision.
   function updateHoverState(mouseX: number, mouseY: number, hitDistance: number) {
-    const index = Math.min(data.length - 1, Math.max(0, Math.round(zoomedXScale.invert(mouseX) - 0.5)));
-    setHoverIndex(index);
+    // Case survolée sans borne : à droite de la dernière bougie, le réticule suit le pointeur dans l'espace vide
+    // (useHoverSync borne à une vraie bougie tout ce qui lit des valeurs).
+    const index = Math.round(zoomedXScale.invert(mouseX) - 0.5);
+    setHoverIndex(Number.isFinite(index) ? index : null);
     setHoverY(mouseY <= priceHeight ? mouseY : null);
     // Bounded to volume's own [top, bottom) range (wherever it currently sits among the
     // indicator panes — see volumeTop), not just a bare "> priceHeight" — without both bounds,

@@ -662,6 +662,26 @@
   animation: lq-chart-fullscreen-in 150ms ease;
 }
 
+/* Plein écran posé dans un conteneur qui a un flou d'arrière-plan, un filtre, une transformation ou un « contain »
+   (panneau en verre d'un thème, carte animée…) : ce conteneur devient le cadre d'un élément `position: fixed`, et le
+   graphique se calait sur lui au lieu de l'écran, décalé et coupé. Tant qu'un graphique est en plein écran, ses
+   conteneurs perdent ces propriétés (et leur ordre d'empilement propre, pour que le graphique passe au-dessus de l'en-tête
+   de la page). */
+:has(> .lq-chart--fullscreen),
+:has(.lq-chart--fullscreen),
+:has(.lq-chart-workspace--fullscreen) {
+  transform: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  perspective: none !important;
+  contain: none !important;
+  will-change: auto !important;
+  container-type: normal !important;
+  isolation: auto !important;
+  z-index: auto !important;
+}
+
 @keyframes lq-chart-fullscreen-in {
   from {
     opacity: 0;

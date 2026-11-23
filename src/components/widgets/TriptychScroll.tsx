@@ -374,6 +374,9 @@ function TriptychLive({ embed, width, height, gap, radius, bandRef }: { embed: T
     <div className="lq-triptych__live" style={{ clipPath: `path("${sectionsPath(width, height, gap, radius)}")` }}>
       <div ref={bandRef} className="lq-triptych__live-band">
       <iframe
+        // Nouveau lecteur à chaque adresse : changer l'adresse d'un lecteur existant ajouterait une étape à
+        // l'historique du navigateur (« Précédent » repasserait par l'ancienne chaîne).
+        key={embed.src}
         className="lq-triptych__live-player"
         src={embed.src}
         title={embed.title}

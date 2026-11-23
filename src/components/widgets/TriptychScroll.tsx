@@ -83,6 +83,11 @@ export interface TriptychScrollProps {
   /** Défilement nécessaire pour une étape, en part de la hauteur du cadre. Défaut 0.9. */
   stepLength?: number;
   /**
+   * Maintien en fin de course, en part de la hauteur du cadre : une fois la dernière vue affichée, le cadre reste
+   * collé pendant ce défilement de plus avant que la page reprenne. Défaut 0 (la page repart aussitôt).
+   */
+  endHold?: number;
+  /**
    * Un fond commun aux trois sections : une vidéo (ou une image) qui s'étend sur toute la largeur, chaque
    * section en montrant sa part, comme trois fenêtres sur la même scène. Il forme la première vue de chaque
    * section : au défilement, les sections glissent l'une après l'autre et découvrent leurs vues suivantes
@@ -130,6 +135,7 @@ export function TriptychScroll({
   height = "100vh",
   stickyTop = "0px",
   stepLength = 0.9,
+  endHold = 0,
   gap = 8,
   overlay,
   onStepChange,
@@ -206,7 +212,8 @@ export function TriptychScroll({
       raf = 0;
       const r = root.getBoundingClientRect();
       const fr = frame.getBoundingClientRect();
-      const travel = r.height - fr.height;
+      // Le maintien de fin de course ne compte pas dans la progression : les vues finissent de défiler avant lui.
+      const travel = r.height - fr.height - Math.max(0, endHold) * fr.height;
       const progress = travel > 0 ? clamp01((fr.top - r.top) / travel) : 0;
       const u = progress * steps;
       for (let c = 0; c < 3; c++) {
@@ -246,7 +253,7 @@ export function TriptychScroll({
     };
     // counts / directions / order : des tableaux recréés à chaque rendu, comparés par leur contenu.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [steps, counts.join(), directions.join(), order.join(), frameHeight, frameWidth, gap, scrub, reducedMotion, !!background?.embed]);
+  }, [steps, counts.join(), directions.join(), order.join(), frameHeight, frameWidth, gap, endHold, scrub, reducedMotion, !!background?.embed]);
 
   // Les trois vidéos du fond commun restent calées sur la première (même fichier, trois lecteurs).
   useEffect(() => {
@@ -259,7 +266,7 @@ export function TriptychScroll({
     return () => window.clearInterval(timer);
   }, [background?.video, reducedMotion]);
 
-  const total = frameHeight ? `calc(${height} + ${Math.round(steps * stepLength * frameHeight)}px)` : height;
+  const total = frameHeight ? `calc(${height} + ${Math.round((steps * stepLength + Math.max(0, endHold)) * frameHeight)}px)` : height;
   const overlayNode = typeof overlay === "function" ? overlay(state) : overlay;
 
   return (

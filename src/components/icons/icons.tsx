@@ -853,6 +853,14 @@ export const ZoomOutIcon = (props: AnimatedIconProps) => (
   </IconBase>
 );
 
+/** Deux lignes verticales qui bornent une zone, une étincelle entre elles — l'outil « Interroger l'IA sur une zone ». */
+export const RangeAskIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="grow" {...props}>
+    <path d="M4 4v16M20 4v16" />
+    <path d="M12 7.5l1.2 3.3 3.3 1.2-3.3 1.2-1.2 3.3-1.2-3.3-3.3-1.2 3.3-1.2z" />
+  </IconBase>
+);
+
 /** Two faint zigzags (several noisy individual series) collapsing into one bold flat line (their
  *  average) — SeasonalityView's own "années indépendantes" hover-average toggle. */
 export const AverageLineIcon = (props: AnimatedIconProps) => (

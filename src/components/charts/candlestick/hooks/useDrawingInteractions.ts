@@ -78,6 +78,8 @@ export interface UseDrawingInteractionsArgs {
   setPendingExtraPoints: (v: DataPoint[] | ((prev: DataPoint[]) => DataPoint[])) => void;
   measurePoints: { p1: DataPoint; p2: DataPoint } | null;
   setMeasurePoints: (v: { p1: DataPoint; p2: DataPoint } | null | ((prev: { p1: DataPoint; p2: DataPoint } | null) => { p1: DataPoint; p2: DataPoint } | null)) => void;
+  /** Outil « Interroger l'IA sur une zone » : les deux dates cliquées (voir placeDrawingOnClick). */
+  onRangePicked?: (a: Date, b: Date) => void;
   /** Mesure faite au raccourci Maj + clic (voir useDrawingState) : temporaire, effacée au clic suivant. */
   quickMeasureRef: MutableRef<boolean>;
   /** Raccourci « Maj + clic pour mesurer » disponible : outils de dessin affichés, aucun outil personnalisé armé. */
@@ -202,6 +204,7 @@ export function useDrawingInteractions({
   setPendingExtraPoints,
   measurePoints,
   setMeasurePoints,
+  onRangePicked,
   quickMeasureRef,
   measureShortcut,
   drawingsLocked,
@@ -438,6 +441,7 @@ export function useDrawingInteractions({
       setTextEntry,
       hoveredIndicatorIdRef,
       toDataPoint,
+      onRangePicked,
       ...overrides,
     });
   }

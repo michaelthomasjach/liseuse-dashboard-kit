@@ -61,6 +61,7 @@ import {
 } from "./workspace/gridLayouts";
 import "./ChartWorkspace.css";
 
+import type { ChartRangeAskRequest } from "./candlestick/interfaces/ChartRangeAsk.interface";
 export type { ChartWorkspaceGridArea, ChartWorkspaceGridLayout, ChartWorkspaceGridLayoutId, ChartWorkspacePanelCount } from "./workspace/gridLayouts";
 
 
@@ -630,6 +631,8 @@ function ChartWorkspaceBody({
   // that opens it lives on the workspace's own rail, so the workspace is what knows whether it is
   // open — and one shared value means two panels can never both show an assistant.
   const [assistantOpen, setAssistantOpen] = useState(false);
+  /** Question posée sur une zone d'une fenêtre qui n'a pas l'assistant, en attente de celle qui l'a. */
+  const [rangePrompt, setRangePrompt] = useState<{ id: number; text: string; display?: string } | null>(null);
   // focusRequest : l'assistant tout de suite, le script dès qu'il est dans la liste.
   const handledFocusSeqRef = useRef<number | null>(null);
   const pendingFocusScriptRef = useRef<string | null>(null);
@@ -1316,8 +1319,28 @@ function ChartWorkspaceBody({
             // Et ce que l'assistant comme le pont peuvent faire de l'espace de travail (fenêtres, symbole de chacune).
             aiWorkspace: (onToolBridge || ai) && i === (effectiveFocusedPanelIndex ?? 0) ? aiWorkspace : undefined,
             ...(ai && i === (effectiveFocusedPanelIndex ?? 0)
-              ? { ai, aiOpen: assistantOpen, onAiOpenChange: setAssistantOpen, aiPortalTarget: isMobileWorkspace ? undefined : aiSlot }
-              : { ai: undefined }),
+              ? {
+                  ai,
+                  aiOpen: assistantOpen,
+                  onAiOpenChange: setAssistantOpen,
+                  aiPortalTarget: isMobileWorkspace ? undefined : aiSlot,
+                  // Questions posées sur une zone d'une autre fenêtre : c'est l'assistant de celle-ci qui y répond.
+                  aiPrompt: rangePrompt,
+                  onAiPromptHandled: () => setRangePrompt(null),
+                }
+              : {
+                  ai: undefined,
+                  // Outil « Interroger l'IA sur une zone » d'une fenêtre sans assistant : la question part vers
+                  // l'assistant de l'espace de travail (la fenêtre au premier plan), ouvert pour la réponse.
+                  ...(ai && child.props.rangeAsk && !child.props.onRangeAsk
+                    ? {
+                        onRangeAsk: (request: ChartRangeAskRequest) => {
+                          setAssistantOpen(true);
+                          setRangePrompt({ id: Date.now(), text: request.prompt, display: request.summary });
+                        },
+                      }
+                    : {}),
+                }),
             timeframe: i in timeframeByPanel ? timeframeByPanel[i] : child.props.timeframe,
             onTimeframeChange: (value: string) => {
               lastReportedTimeframeRef.current = value;

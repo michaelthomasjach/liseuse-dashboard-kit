@@ -74,6 +74,8 @@ const TOOL_STEPS: Record<string, string> = {
   lire_le_resultat_d_un_script: "Lecture du résultat du script",
   lire_les_donnees_fondamentales: "Lecture des données fondamentales",
   lire_les_prix: "Lecture des prix",
+  selectionner_une_zone: "Sélection de la zone",
+  lire_une_zone: "Lecture de la zone",
   marquer_des_seances: "Marquage des séances",
   lire_la_documentation_du_scripting: "Lecture de la documentation",
   comparer_cote_a_cote: "Comparaison côte à côte",
@@ -169,7 +171,9 @@ const makeId = () => `ai-${Date.now().toString(36)}-${(++nextId).toString(36)}`;
 export interface AiAssistant {
   transcript: AiTranscriptEntry[];
   busy: boolean;
-  ask: (question: string) => Promise<void>;
+  /** Pose une question. `display` : ce que la conversation affiche à sa place (le modèle reçoit `question` entière),
+   *  pour une demande qui porte des données brutes — les bougies d'une zone, par exemple. */
+  ask: (question: string, display?: string) => Promise<void>;
   stop: () => void;
   /** Efface la conversation en cours (retirée de la liste). */
   reset: () => void;
@@ -278,7 +282,7 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store,
   );
 
   const ask = useCallback(
-    async (question: string) => {
+    async (question: string, display?: string) => {
       const text = question.trim();
       if (!text || send === null) return;
 
@@ -289,7 +293,7 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store,
       setProgress({ startedAt: Date.now(), step: "Préparation" });
       dirtyRef.current = true;
 
-      setTranscript((prev) => [...prev, { id: makeId(), role: "user", text }]);
+      setTranscript((prev) => [...prev, { id: makeId(), role: "user", text: display?.trim() || text }]);
       historyRef.current = [...withoutImages(historyRef.current), { role: "user", content: [{ type: "text", text }] }];
 
       // The manual is only fetched once per session and only when the assistant is actually used —

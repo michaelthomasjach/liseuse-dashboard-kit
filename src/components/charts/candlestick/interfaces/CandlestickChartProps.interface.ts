@@ -24,6 +24,7 @@ import type { ScriptDef } from "./ScriptDef.interface";
 import type { ScriptAlertEvent } from "./ScriptAlertEvent.interface";
 import type { ChartVisibleRange } from "./ChartVisibleRange.interface";
 import type { AiSend, AiServerTool } from "../ai/interfaces/AiMessage.interface";
+import type { ChartRangeAskRequest } from "./ChartRangeAsk.interface";
 import type { ScriptRunOutput } from "../scripting/interfaces/ScriptRunOutput.interface";
 
 /** Option « Notifier sur mon téléphone » de la fenêtre d'alerte (voir `CandlestickChartProps.alertPhoneNotification`). */
@@ -765,6 +766,19 @@ export interface CandlestickChartProps {
    *  Every action the assistant takes goes through the very functions this chart's own buttons
    *  call, so nothing it does is reachable that a person could not do, and everything it does is
    *  undone the same way. */
+  /** Outil « Interroger l'IA sur une zone » dans la barre d'outils de gauche : deux clics bornent une zone (début puis
+   *  fin), affichée en bandeau avec une poignée sur chacune de ses deux lignes pour la déplacer, et une infobulle
+   *  propose « Expliquer ce mouvement de prix », « Trouver les évènements derrière ce mouvement », « Analyser la
+   *  technique de cette zone » ou une question libre. La question part, avec les chiffres et les bougies de la zone,
+   *  vers `onRangeAsk` s'il est fourni, sinon vers l'assistant du graphique (`ai`), qui s'ouvre. Désactivé par défaut ;
+   *  sans `onRangeAsk` ni transport d'assistant, le bouton n'apparaît pas. */
+  rangeAsk?: boolean;
+  /** Reçoit la question posée sur une zone (voir `rangeAsk`) à la place de l'assistant du graphique. */
+  onRangeAsk?: (request: ChartRangeAskRequest) => void;
+  /** Question à poser à l'assistant du graphique dès qu'elle arrive (un nouvel `id` la pose) : `ChartWorkspace` y fait
+   *  passer les questions de zone des fenêtres qui n'ont pas l'assistant. `onAiPromptHandled` est appelé une fois posée. */
+  aiPrompt?: { id: number; text: string; display?: string } | null;
+  onAiPromptHandled?: () => void;
   ai?: {
     send?: AiSend;
     /** Conversations gardées par l'application (historique, nouvelle conversation, choix dans l'en-tête) — voir

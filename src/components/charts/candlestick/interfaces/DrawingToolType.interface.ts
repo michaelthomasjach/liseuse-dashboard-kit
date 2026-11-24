@@ -12,6 +12,7 @@ export type DrawingToolType =
   | "elliottCorrection"
   | "measure"
   | "zoomIn"
+  | "rangeAsk"
   | "rectangle"
   | "elbowArrow"
   | "brush"

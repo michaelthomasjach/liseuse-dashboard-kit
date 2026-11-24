@@ -1,0 +1,182 @@
+/* Zone de l'outil « Interroger l'IA sur une zone » (voir RangeAskOverlay.tsx). Le cadre laisse passer le pointeur ;
+   seuls les poignées et l'infobulle le prennent. */
+.lq-chart__range-ask {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.lq-chart__range-ask-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--lq-color-accent) 14%, transparent);
+}
+
+.lq-chart__range-ask-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px solid var(--lq-color-accent);
+}
+
+/* Poignée au milieu de la ligne : un rond assez grand pour le doigt, le curseur de redimensionnement au survol. */
+.lq-chart__range-ask-handle {
+  position: absolute;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--lq-color-accent);
+  border-radius: 50%;
+  background: var(--lq-color-bg);
+  cursor: ew-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* Zone de prise plus large que le rond, pour le doigt. */
+.lq-chart__range-ask-handle::before {
+  content: "";
+  position: absolute;
+  inset: -12px;
+}
+
+.lq-chart__range-ask-handle:hover,
+.lq-chart__range-ask-handle:focus-visible {
+  background: var(--lq-color-accent);
+  outline: none;
+}
+
+/* Date du bord, posée sur l'axe du temps sous la ligne. */
+.lq-chart__range-ask-date {
+  position: absolute;
+  left: 0;
+  transform: translate(-50%, 4px);
+  padding: 2px 6px;
+  border-radius: var(--lq-radius-sm, 4px);
+  background: var(--lq-color-accent);
+  color: var(--lq-color-accent-contrast, #fff);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lq-chart__range-ask-menu {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-lg, 12px);
+  background: var(--lq-color-surface, var(--lq-color-bg));
+  box-shadow: var(--lq-shadow-popover, 0 8px 24px rgb(0 0 0 / 25%));
+  pointer-events: auto;
+  animation: lq-range-ask-in 140ms ease-out;
+}
+
+@keyframes lq-range-ask-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-chart__range-ask-menu {
+    animation: none;
+  }
+}
+
+.lq-chart__range-ask-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 2px 6px;
+}
+
+.lq-chart__range-ask-title {
+  font-size: 0.72rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart__range-ask-close {
+  display: inline-flex;
+  padding: 4px;
+  border: none;
+  border-radius: var(--lq-radius-sm, 4px);
+  background: none;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-chart__range-ask-close:hover {
+  background: var(--lq-color-hover);
+  color: var(--lq-color-text);
+}
+
+.lq-chart__range-ask-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--lq-radius-md, 8px);
+  background: var(--lq-color-hover);
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lq-chart__range-ask-option:hover,
+.lq-chart__range-ask-option:focus-visible {
+  background: color-mix(in srgb, var(--lq-color-accent) 18%, var(--lq-color-hover));
+  outline: none;
+}
+
+.lq-chart__range-ask-form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 2px 2px 10px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md, 8px);
+}
+
+.lq-chart__range-ask-form:focus-within {
+  border-color: var(--lq-color-accent);
+}
+
+.lq-chart__range-ask-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 0;
+  border: none;
+  background: none;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.8rem;
+  outline: none;
+}
+
+.lq-chart__range-ask-send {
+  display: inline-flex;
+  padding: 6px;
+  border: none;
+  border-radius: var(--lq-radius-sm, 4px);
+  background: var(--lq-color-accent);
+  color: var(--lq-color-accent-contrast, #fff);
+  cursor: pointer;
+}
+
+.lq-chart__range-ask-send:disabled {
+  background: var(--lq-color-hover);
+  color: var(--lq-color-text-muted);
+  cursor: default;
+}

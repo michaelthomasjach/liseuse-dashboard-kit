@@ -100,6 +100,7 @@ export {
   MeasureIcon,
   ZoomInIcon,
   ZoomOutIcon,
+  RangeAskIcon,
   AverageLineIcon,
   MagnetIcon,
   RectangleShapeIcon,

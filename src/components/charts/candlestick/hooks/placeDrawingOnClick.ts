@@ -55,6 +55,8 @@ export interface DrawingPlacementContext {
   hoveredIndicatorIdRef: MutableRef<string | null>;
   /** Screen point to data point, the same conversion the hover path uses. */
   toDataPoint: (e: { clientX: number; clientY: number }) => DataPoint;
+  /** Outil « Interroger l'IA sur une zone » : les deux dates cliquées, dans l'ordre des clics. */
+  onRangePicked?: (a: Date, b: Date) => void;
 }
 
 /** What a click on the plot does, per drawing tool.
@@ -226,6 +228,20 @@ export function placeDrawingOnClick(e: React.MouseEvent<SVGRectElement>, ctx: Dr
         setXTransformAnimated(new d3.ZoomTransform(k, -k * x0, 0));
         setYManuallyAdjusted(false);
       }
+      setPendingPoint(null);
+      setPreviewPoint(null);
+      setActiveTool(null);
+      return;
+    }
+    // « Interroger l'IA sur une zone » : même pose en deux clics que le zoom ci-dessus ; le 2e clic remet la zone (deux
+    // dates) au graphique, qui l'affiche avec ses poignées et l'infobulle des questions, et l'outil se désarme.
+    if (activeTool === "rangeAsk") {
+      if (!pendingPoint) {
+        setPendingPoint(point);
+        setPreviewPoint(point);
+        return;
+      }
+      ctx.onRangePicked?.(pendingPoint.x, point.x);
       setPendingPoint(null);
       setPreviewPoint(null);
       setActiveTool(null);

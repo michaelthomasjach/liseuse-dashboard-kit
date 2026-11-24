@@ -3,7 +3,7 @@ import type { ChartCustomTool } from "../interfaces/ChartCustomTool.interface";
 import type { RefObject, Dispatch, SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
 import { Checkbox } from "../../../forms/Checkbox";
-import { ChevronRightIcon, MagnetIcon, EyeIcon, EyeOffIcon, TimeframeLayersIcon, DaySeparatorsIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon, MaximizeIcon, MinimizeIcon } from "../../../icons";
+import { ChevronRightIcon, MagnetIcon, EyeIcon, EyeOffIcon, TimeframeLayersIcon, DaySeparatorsIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon, MaximizeIcon, MinimizeIcon, RangeAskIcon } from "../../../icons";
 import { ToolCategorySheet } from "./ToolCategorySheet";
 import { RailScrollThumb } from "./RailScrollThumb";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
@@ -68,6 +68,8 @@ export interface ToolsRailProps {
    *  button then does not render at all, rather than opening a panel that could never answer. */
   aiOpen: boolean | undefined;
   setAiOpen: ((open: boolean) => void) | undefined;
+  /** Outil « Interroger l'IA sur une zone » (voir `CandlestickChartProps.rangeAsk`) : bouton absent sans lui. */
+  rangeAsk?: boolean;
   setMarketStateOpen: Dispatch<SetStateAction<boolean>>;
   onOpenToolInfo: (tool: DrawingToolType) => void;
   /** See `CandlestickChartProps.workspaceFullscreen`. */
@@ -133,6 +135,7 @@ export function ToolsRail({
   marketStateOpen,
   aiOpen,
   setAiOpen,
+  rangeAsk = false,
   setMarketStateOpen,
   onOpenToolInfo,
   workspaceFullscreen = false,
@@ -370,6 +373,20 @@ export function ToolsRail({
           </>
         )}
         <div className="lq-chart__tool-separator" aria-hidden="true" />
+        {/* « Interroger l'IA sur une zone » : deux clics bornent une zone, puis une infobulle propose des questions à
+            l'IA sur ce qui s'y est passé. Juste avant la Mesure, l'autre outil qui lit une portion du graphique. */}
+        {rangeAsk && (
+          <button
+            type="button"
+            className={["lq-chart__icon-button", activeTool === "rangeAsk" && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+            onClick={() => handleToolClick("rangeAsk")}
+            aria-label="Interroger l'IA sur une zone"
+            aria-pressed={activeTool === "rangeAsk"}
+            title="Interroger l'IA sur une zone : cliquer au début puis à la fin de la zone"
+          >
+            <RangeAskIcon size={14} />
+          </button>
+        )}
         {/* Moved out of the drawing-tool categories above (see the filter on that map) — doesn't
             add a drawing to the chart the way every other category does, which reads closer to a
             utility tool like the magnet right below it than a "drawing" pick. Still driven by

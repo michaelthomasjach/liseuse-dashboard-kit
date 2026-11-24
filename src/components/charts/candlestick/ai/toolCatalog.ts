@@ -19,6 +19,7 @@ export interface ChartAiToolCatalogEntry {
 export const CHART_AI_TOOL_GROUPS: { group: string; tools: string[] }[] = [
   { group: "Lecture", tools: ["decrire_le_graphique", "lire_les_prix", "lire_les_donnees_fondamentales", "capturer_le_graphique"] },
   { group: "Navigation", tools: ["naviguer_dans_le_temps"] },
+  { group: "Zones", tools: ["selectionner_une_zone", "lire_une_zone"] },
   { group: "Axes", tools: ["regler_l_axe_vertical", "regler_les_axes"] },
   { group: "Symboles et type de graphique", tools: ["changer_de_symbole", "changer_l_unite_de_temps", "changer_le_type_de_graphique", "gerer_les_comparaisons"] },
   {

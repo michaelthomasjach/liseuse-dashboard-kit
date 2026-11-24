@@ -588,7 +588,24 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       ctx.lineWidth = 1.5;
       ctx.setLineDash([4, 4]);
 
-      if (activeTool === "channel" && pendingSecondPoint) {
+      if (activeTool === "rangeAsk") {
+        // Zone en cours de pose : bandeau teinté sur toute la hauteur du panneau des prix entre le 1er clic et le
+        // pointeur, deux lignes pleines à ses bords.
+        const xa = zoomedXScale(indexForDate(pendingPoint.x) + 0.5);
+        const xb = zoomedXScale(indexForDate(previewPoint.x) + 0.5);
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 0.14;
+        ctx.fillStyle = colorAccent;
+        ctx.fillRect(Math.min(xa, xb), 0, Math.abs(xb - xa), priceHeight);
+        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(xa, 0);
+        ctx.lineTo(xa, priceHeight);
+        ctx.moveTo(xb, 0);
+        ctx.lineTo(xb, priceHeight);
+        ctx.stroke();
+      } else if (activeTool === "channel" && pendingSecondPoint) {
         // Line 1 is fixed now (points 1 and 2 already placed) — the live cursor (previewPoint)
         // instead previews line 2's offset, the tool's 3rd/final click.
         const x1 = zoomedXScale(indexForDate(pendingPoint.x) + 0.5);

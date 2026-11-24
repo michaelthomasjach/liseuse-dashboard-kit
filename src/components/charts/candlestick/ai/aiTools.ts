@@ -10,6 +10,7 @@ import { COMPARISON_TOOLS, comparisonToolAvailable } from "./comparisonTools";
 import { CAPTURE_TOOL, CAPTURE_TOOLS } from "./captureTool";
 import { DESCRIBE_TOOL, DESCRIBE_TOOL_NAME } from "./describeTool";
 import { CONTROL_TOOLS, controlToolAvailable } from "./controlTools";
+import { RANGE_TOOLS, rangeToolAvailable } from "./rangeTools";
 import { DRAWING_TOOLS } from "./drawingTools";
 import { UI_TOOLS, uiToolAvailable } from "./uiTools";
 import { WORKSPACE_TOOLS, workspaceToolAvailable } from "./workspaceTools";
@@ -863,6 +864,8 @@ export const AI_TOOLS: AiTool[] = [
   // type de graphique, comparaisons, alertes, affichage, annuler (controlTools) ; dessins (drawingTools) ; fenêtres de
   // paramètres, interaction générique et clic droit (uiTools) ; fenêtres de l'espace de travail (workspaceTools).
   ...CONTROL_TOOLS,
+  // Zones du graphique : poser / lire / retirer la zone de l'outil « Interroger l'IA sur une zone », chiffrer une période.
+  ...RANGE_TOOLS,
   ...DRAWING_TOOLS,
   ...UI_TOOLS,
   ...WORKSPACE_TOOLS,
@@ -910,6 +913,8 @@ export function availableAiTools(chartIn: AiChartContext): AiTool[] {
   return AI_TOOLS.filter((tool) => {
     const comparison = comparisonToolAvailable(tool.definition.name, chart);
     if (comparison !== undefined) return comparison;
+    const range = rangeToolAvailable(tool.definition.name, chart);
+    if (range !== undefined) return range;
     const extra = controlToolAvailable(tool.definition.name, chart) ?? uiToolAvailable(tool.definition.name, chart) ?? workspaceToolAvailable(tool.definition.name, chart);
     if (extra !== undefined) return extra;
     if (tool.definition.name === "changer_l_unite_de_temps") return chart.setTimeframe !== undefined && chart.availableTimeframes.length > 0;

@@ -23,6 +23,9 @@ import { useStrategyMarkers } from "./candlestick/hooks/useStrategyMarkers";
 import { useStrategyPanelState } from "./candlestick/hooks/useStrategyPanelState";
 import { useAiChartContext } from "./candlestick/ai/useAiChartContext";
 import { useAiAssistant } from "./candlestick/ai/useAiAssistant";
+import { RangeAskOverlay } from "./candlestick/components/RangeAskOverlay";
+import { buildRangeAskRequest, orderedRange } from "./candlestick/rangeAsk";
+import type { ChartRangeAsk, ChartRangeAskKind } from "./candlestick/interfaces/ChartRangeAsk.interface";
 import { AiHost, type AiView } from "./candlestick/ai/components/AiHost";
 import { ChartWatermark } from "./candlestick/components/ChartWatermark";
 import { ChartNavigationButtons } from "./candlestick/components/ChartNavigationButtons";
@@ -301,7 +304,7 @@ function CandlestickChartBody({
   fillHeight = false,
   layout = "auto",
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
-  scripts, onScriptsChange, onScriptAlert, quantData, ai, aiOpen: aiOpenProp, onAiOpenChange, aiPortalTarget, onEditScript: onEditScriptProp, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
+  scripts, onScriptsChange, onScriptAlert, quantData, ai, aiOpen: aiOpenProp, onAiOpenChange, aiPortalTarget, rangeAsk = false, onRangeAsk, aiPrompt, onAiPromptHandled, onEditScript: onEditScriptProp, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
   emptyLabel,
   notice,
   margin,
@@ -1636,6 +1639,9 @@ function CandlestickChartBody({
     paneScaleAndOffset,
   });
 
+  // Outil « Interroger l'IA sur une zone » : la zone posée en deux clics (voir placeDrawingOnClick), affichée avec ses
+  // poignées et l'infobulle des questions tant qu'aucune question n'est partie (voir RangeAskOverlay).
+  const [askRange, setAskRange] = useState<ChartRangeAsk | null>(null);
   const {
     toDataPoint,
     handleOverlayClick,
@@ -1654,6 +1660,7 @@ function CandlestickChartBody({
     handleOverlayPointerUp,
     selectionBox,
   } = useDrawingInteractions({
+    onRangePicked: (a: Date, b: Date) => setAskRange(orderedRange(a, b)),
     openIndicatorSettings,
     openVolumeSettings: () => setVolumeSettingsOpen(true),
     dblClickTargetRef,
@@ -1973,6 +1980,7 @@ function CandlestickChartBody({
     },
     alerts: alerts ?? [], onCreateAlert, onUpdateAlert, onDeleteAlert,
     isFullscreen, toggleFullscreen: () => toggleFullscreen(), symbolInfoHidden, setSymbolInfoHidden, marketStateOpen, setMarketStateOpen,
+    rangeAsk: askRange, setRangeAsk: setAskRange, rangeAskEnabled: rangeAsk && (onRangeAsk !== undefined || Boolean(ai?.send || ai?.apiKey)),
     undo: () => historyRef.current.undo(), redo: () => historyRef.current.redo(),
     openSystemSettings: () => setSettingsOpen(true), openSymbolSettings: () => setPriceSettingsOpen(true), openVolumeSettings: () => setVolumeSettingsOpen(true),
     openDaySeparators: () => setDaySeparatorsSettingsOpen(true), openIndicatorSettings,
@@ -2119,6 +2127,32 @@ function CandlestickChartBody({
   const aiImages = ai?.images ?? (!ai?.send && Boolean(ai?.apiKey));
   const assistant = useAiAssistant({ chart: aiChart, send: aiSend ?? null, serverTools: ai?.serverTools ?? [], conversations: ai?.conversations, images: aiImages });
   const [aiDraft, setAiDraft] = useState("");
+  // L'outil de zone n'apparaît que s'il peut répondre : l'application reçoit la question (`onRangeAsk`), ou
+  // l'assistant du graphique a un transport.
+  const rangeAskEnabled = rangeAsk && (onRangeAsk !== undefined || (aiSend !== null && aiSend !== undefined));
+  const closeAskRange = useCallback(() => setAskRange(null), []);
+  /** Une question de l'infobulle : la demande complète (contexte de la zone + question) part vers l'application si
+   *  elle la prend, sinon vers l'assistant du graphique, ouvert pour montrer la réponse. La zone se retire ensuite. */
+  // Question venue d'une autre fenêtre de l'espace de travail (voir `aiPrompt`) : posée une fois, assistant ouvert.
+  const lastAiPromptIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!aiPrompt || aiPrompt.id === lastAiPromptIdRef.current || !aiSend) return;
+    lastAiPromptIdRef.current = aiPrompt.id;
+    setAiOpen(true);
+    void assistant.ask(aiPrompt.text, aiPrompt.display);
+    onAiPromptHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiPrompt?.id, aiSend]);
+  function askAboutRange(kind: ChartRangeAskKind, question?: string) {
+    if (askRange === null) return;
+    const request = buildRangeAskRequest({ kind, question, range: askRange, data, symbol: symbolName ?? symbol, timeframe, formatDate: dFmt });
+    if (onRangeAsk) onRangeAsk(request);
+    else {
+      setAiOpen(true);
+      void assistant.ask(request.prompt, request.summary);
+    }
+    setAskRange(null);
+  }
   /** Which of the strategy panel's written-out questions is in flight, so its own chip can say so.
    *  The answer itself lives in the assistant's transcript like any other. */
   const [strategyAiPromptId, setStrategyAiPromptId] = useState<string | null>(null);
@@ -2643,6 +2677,7 @@ function CandlestickChartBody({
       setMarketStateOpen={setMarketStateOpen}
       aiOpen={ai && !aiControlled ? aiOpen : undefined}
       setAiOpen={ai && !aiControlled ? setAiOpen : undefined}
+      rangeAsk={rangeAskEnabled}
       onOpenToolInfo={setInfoTool}
       workspaceFullscreen={workspaceFullscreen}
       onToggleWorkspaceFullscreen={isMobileRail ? onToggleWorkspaceFullscreen : undefined}
@@ -3168,6 +3203,22 @@ function CandlestickChartBody({
           activeEventStack={activeEventStack}
           eventModalOpen={eventModalOpen}
         />
+        {rangeAskEnabled && askRange !== null && (
+          <RangeAskOverlay
+            range={askRange}
+            onRangeChange={setAskRange}
+            onClose={closeAskRange}
+            onAsk={askAboutRange}
+            data={data}
+            indexForDate={indexForDate}
+            zoomedXScale={zoomedXScale}
+            left={dims.margin.left}
+            top={dims.margin.top}
+            width={dims.boundedWidth}
+            height={plotBoundedHeight}
+            formatDate={dFmt}
+          />
+        )}
         <CustomToolbarsLayer {...customToolbars.layerProps} plotWidth={dims.boundedWidth} plotLeft={dims.margin.left} plotBottom={dims.margin.bottom} />
         {showFloatingToolbar && (
           <FloatingDrawingToolbar

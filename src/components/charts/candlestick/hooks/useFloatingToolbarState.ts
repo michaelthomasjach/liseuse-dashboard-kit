@@ -63,7 +63,7 @@ export function useFloatingToolbarState({
   const showFloatingToolbar = selectedDrawingId !== null;
   // "measure"/"zoomIn" produce no persistent styled drawing — the pencil/text/stroke sections
   // have nothing to act on for either, only the grip and bell apply.
-  const showToolbarStyleControls = activeTool !== "measure" && activeTool !== "zoomIn";
+  const showToolbarStyleControls = activeTool !== "measure" && activeTool !== "zoomIn" && activeTool !== "rangeAsk";
   const toolbarColor = selectedDrawing ? (selectedDrawing.color ?? defaultDrawingColor) : defaultDrawingStyle.color;
   const toolbarTextColor = selectedDrawing
     ? (selectedDrawing.textColor ?? selectedDrawing.color ?? defaultDrawingColor)

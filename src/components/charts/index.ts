@@ -139,6 +139,7 @@ export type { ChartMargin, ChartDimensions } from "./internal/useChartDimensions
 export { SankeyChart } from "./SankeyChart";
 export type { SankeyChartProps, SankeyNodeDatum, SankeyLinkDatum } from "./SankeyChart";
 export type { ChartCustomTool } from "./candlestick/interfaces/ChartCustomTool.interface";
+export type { ChartRangeAsk, ChartRangeAskKind, ChartRangeAskRequest } from "./candlestick/interfaces/ChartRangeAsk.interface";
 export type { ChartCustomToolbar } from "./candlestick/interfaces/ChartCustomToolbar.interface";
 export type { OverlayDrawingInteraction } from "./candlestick/interfaces/OverlayDrawingInteraction.interface";
 export type { ChartHeaderAction } from "./candlestick/interfaces/ChartHeaderAction.interface";

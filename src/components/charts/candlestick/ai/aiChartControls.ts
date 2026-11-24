@@ -1,3 +1,4 @@
+import type { ChartRangeAsk } from "../interfaces/ChartRangeAsk.interface";
 import * as d3 from "d3";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { PriceScaleMode } from "../interfaces/PriceScaleMode.interface";
@@ -128,6 +129,10 @@ export interface AiChartControls {
   setSymbolInfoHidden: (hidden: boolean) => void;
   marketStateOpen: () => boolean;
   setMarketStateOpen: (open: boolean) => void;
+  /** Zone de l'outil « Interroger l'IA sur une zone » : affichée ou non, la poser / la retirer, outil disponible. */
+  rangeAsk?: () => ChartRangeAsk | null;
+  setRangeAsk?: (range: ChartRangeAsk | null) => void;
+  rangeAskEnabled?: () => boolean;
 
   undo: () => boolean;
   redo: () => boolean;
@@ -238,6 +243,9 @@ export interface AiControlsState {
   setSymbolInfoHidden: (hidden: boolean) => void;
   marketStateOpen: boolean;
   setMarketStateOpen: (open: boolean) => void;
+  rangeAsk: ChartRangeAsk | null;
+  setRangeAsk: (range: ChartRangeAsk | null) => void;
+  rangeAskEnabled: boolean;
   undo: () => boolean;
   redo: () => boolean;
 
@@ -475,6 +483,9 @@ export function buildAiChartControls(get: () => AiControlsState): AiChartControl
     setSymbolInfoHidden: (hidden) => get().setSymbolInfoHidden(hidden),
     marketStateOpen: () => get().marketStateOpen,
     setMarketStateOpen: (open) => get().setMarketStateOpen(open),
+    rangeAsk: () => get().rangeAsk,
+    setRangeAsk: (range) => get().setRangeAsk(range),
+    rangeAskEnabled: () => get().rangeAskEnabled,
 
     undo: () => get().undo(),
     redo: () => get().redo(),

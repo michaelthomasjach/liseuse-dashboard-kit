@@ -28,6 +28,10 @@ export type ChartContextMenuItem =
       submenu?: ChartContextMenuItem[];
       /** Sa cible, mise en évidence au survol ou au focus (voir `ChartContextMenuProps.onTargetChange`). */
       target?: ChartMenuTarget;
+      /** Famille de la ligne : au survol d'une ligne, celles des autres familles s'estompent. Par défaut, le groupe
+       *  entre deux séparateurs (« Ligne horizontale ici » et « Ligne verticale ici », « Ajouter un symbole » et
+       *  « Ajouter un indicateur »…) ; une même famille peut réunir des lignes de groupes différents. */
+      family?: string;
     };
 
 export interface ChartContextMenuProps {
@@ -117,13 +121,37 @@ function ChartContextMenuList({
   onTargetChange?: (target: ChartMenuTarget | null) => void;
 }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  // Familles : le groupe entre deux séparateurs, sauf famille donnée par la ligne. Celle survolée reste nette, les
+  // autres s'estompent (la souris seulement ; le clavier garde tout lisible).
+  const families: (string | null)[] = [];
+  let section = 0;
+  for (const item of items) {
+    if (item.separator) {
+      section++;
+      families.push(null);
+    } else families.push(item.family ?? `groupe-${section}`);
+  }
+  const [hoveredFamily, setHoveredFamily] = useState<string | null>(null);
+  const dimmed = (i: number) => hoveredFamily !== null && families[i] !== hoveredFamily;
+  const hover = (i: number) => (e: { pointerType: string }) => {
+    if (e.pointerType === "mouse") setHoveredFamily(families[i]);
+  };
+  const leave = () => setHoveredFamily(null);
   return (
     <>
       {items.map((item, i) =>
         item.separator ? (
           <div key={`sep-${i}`} className="lq-chart__context-menu-separator" role="separator" />
         ) : item.submenu ? (
-          <div key={`${i}-${item.label}`} className="lq-chart__context-menu-subwrap" onPointerEnter={(e) => e.pointerType === "mouse" && setOpenIndex(i)}>
+          <div
+            key={`${i}-${item.label}`}
+            className={["lq-chart__context-menu-subwrap", dimmed(i) && "lq-chart__context-menu-item--dimmed"].filter(Boolean).join(" ")}
+            onPointerEnter={(e) => {
+              if (e.pointerType === "mouse") setOpenIndex(i);
+              hover(i)(e);
+            }}
+            onPointerLeave={leave}
+          >
             <button
               type="button"
               role="menuitem"
@@ -157,12 +185,14 @@ function ChartContextMenuList({
             key={`${i}-${item.label}`}
             type="button"
             role="menuitem"
-            className="lq-chart__context-menu-item"
+            className={["lq-chart__context-menu-item", dimmed(i) && "lq-chart__context-menu-item--dimmed"].filter(Boolean).join(" ")}
             disabled={item.disabled}
             onPointerEnter={(e) => {
               if (e.pointerType === "mouse") setOpenIndex(null);
+              hover(i)(e);
               onTargetChange?.(item.target ?? null);
             }}
+            onPointerLeave={leave}
             onFocus={() => onTargetChange?.(item.target ?? null)}
             onClick={() => {
               item.onSelect();

@@ -5325,3 +5325,10 @@ button.lq-chart__legend-item {
   gap: 4px;
   white-space: nowrap;
 }
+
+/* Fond translucide (réglage « Opacité du fond », voir chartStyle) : le graphique et son espace de travail laissent leur
+   fond plein, seul le tracé garde son fond (mélangé de transparence) ; ce qui est derrière transparaît. */
+.lq-chart.lq-chart--translucent,
+.lq-chart.lq-chart--translucent.lq-chart--fullscreen {
+  background-color: transparent;
+}

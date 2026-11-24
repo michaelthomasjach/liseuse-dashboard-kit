@@ -83,3 +83,18 @@
     box-shadow: none;
   }
 }
+
+/* Familles : au survol d'une ligne, les lignes des autres familles (autres groupes du menu) s'estompent. */
+.lq-chart__context-menu-item,
+.lq-chart__context-menu-subwrap {
+  transition: opacity 120ms ease;
+}
+.lq-chart__context-menu-item--dimmed {
+  opacity: 0.35;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lq-chart__context-menu-item,
+  .lq-chart__context-menu-subwrap {
+    transition: none;
+  }
+}

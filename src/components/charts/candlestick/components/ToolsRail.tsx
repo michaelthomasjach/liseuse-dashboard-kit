@@ -438,6 +438,8 @@ export function ToolsRail({
         >
           <MagnetIcon size={14} />
         </button>
+        {/* Les bascules d'affichage des dessins (œil, cadenas) séparées de l'aimant, qui agit sur le tracé. */}
+        <div className="lq-chart__tool-separator" aria-hidden="true" />
         {/* Hides every drawing without deleting any of them — same eye/eye-off convention
             the indicator legend already uses for a single indicator, applied here to all
             of `drawings` at once. */}

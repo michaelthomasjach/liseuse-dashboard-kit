@@ -71,6 +71,7 @@ export const CHART_SHORTCUTS: ChartShortcut[] = [
   { id: "axis-drag", group: "Navigation et zoom", keys: [["drag"]], description: "Étirer ou comprimer l'échelle de l'axe.", context: "sur un axe" },
   { id: "axis-dblclick", group: "Navigation et zoom", keys: [["dblclick"]], description: "Remettre l'axe en automatique (ajusté aux bougies visibles).", context: "sur un axe" },
   { id: "reset-zoom", group: "Navigation et zoom", keys: [["Space"]], description: "Réinitialiser le zoom." },
+  { id: "timeframe-step", group: "Navigation et zoom", keys: [["Mod", "ArrowUp"], ["Mod", "ArrowDown"]], description: "Passer à l'unité de temps suivante (plus longue) ou précédente (plus courte) de la liste." },
   { id: "plot-dblclick", group: "Navigation et zoom", keys: [["dblclick"]], description: "Réinitialiser le zoom.", context: "dans le vide du graphique" },
   { id: "replay-step", group: "Navigation et zoom", keys: [["ArrowLeft"], ["ArrowRight"]], description: "Reculer ou avancer d'une bougie.", context: "en replay" },
   { id: "replay-quit", group: "Navigation et zoom", keys: [["Escape"]], description: "Quitter le replay.", context: "en replay" },

@@ -3,7 +3,7 @@ import type { AiChartContext } from "./interfaces/AiChartContext.interface";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { ChartRangeAsk } from "../interfaces/ChartRangeAsk.interface";
 import { DATE_DOC, fail, fmtNum, ok, parseDate, str } from "./toolHelpers";
-import { candlesInRange, orderedRange, rangeStats } from "../rangeAsk";
+import { candlesInRange, orderedRange, rangeStats, rangeStructure } from "../rangeAsk";
 
 /**
  * Outils de l'assistant liés aux zones du graphique (l'outil « Interroger l'IA sur une zone » de la barre de gauche) :
@@ -40,6 +40,9 @@ export function describeRange(data: Candle[], range: ChartRangeAsk): string {
     `Plus haut ${fmtNum(s.high)} le ${iso(s.highAt)}, plus bas ${fmtNum(s.low)} le ${iso(s.lowAt)}, amplitude${pct(s.amplitudePct)}.`,
     `Plus forte hausse d'une bougie : ${fmtNum(up.close - up.open)} le ${iso(up.date)} ; plus forte baisse : ${fmtNum(down.close - down.open)} le ${iso(down.date)}.`,
     ...(s.volume !== null ? [`Volume total ${Math.round(s.volume)}.`] : []),
+    "Structure technique :",
+    ...rangeStructure(data, range, iso),
+    "Pour expliquer ces chiffres : rattache chaque phase et chaque niveau à une cause datée (publication économique, banque centrale, inflation, géopolitique, résultats, échéance d'options), cherchée avec les outils d'actualité et le dossier de la période ; ne te contente pas de les répéter.",
   ].join("\n");
 }
 
@@ -47,7 +50,7 @@ const SELECT_RANGE_TOOL: AiTool = {
   definition: {
     name: "selectionner_une_zone",
     description:
-      "Pose sur le graphique une zone entre deux dates (bandeau entre deux lignes verticales, avec ses poignées et l'infobulle des questions), la lit ou la retire — comme l'outil « Interroger l'IA sur une zone » de la barre de gauche. « poser » rend aussi les chiffres de la zone ; la vue se déplace si la zone est hors de l'écran.",
+      "Pose sur le graphique une zone entre deux dates (bandeau entre deux lignes verticales, avec ses poignées et l'infobulle des questions), la lit ou la retire — comme l'outil « Interroger l'IA sur une zone » de la barre de gauche. « poser » et « lire » rendent le détail chiffré de la zone : variation, plus haut et plus bas datés, supports et résistances, plus fortes bougies, écarts, volatilité et volume comparés à avant la zone, échéances d'options proches ; la vue se déplace si la zone est hors de l'écran. Sers-t'en pour une réponse précise et expliquée, jamais pour recopier des chiffres.",
     inputSchema: {
       type: "object",
       properties: {
@@ -93,7 +96,7 @@ const READ_RANGE_TOOL: AiTool = {
   definition: {
     name: "lire_une_zone",
     description:
-      "Les chiffres d'une période du graphique : ouverture, clôture, variation, plus haut et plus bas datés, amplitude, plus forte hausse et plus forte baisse d'une bougie, volume. Sans dates : la zone affichée (voir selectionner_une_zone).",
+      "Analyse chiffrée et détaillée d'une période du graphique : ouverture, clôture, variation, plus haut et plus bas datés, amplitude, plus fortes bougies, supports et résistances (plus hauts et plus bas locaux regroupés, nombre de contacts), écarts d'ouverture, volatilité et volume comparés à la période précédente, tendance d'avant, échéances d'options (mensuelle, quatre sorcières, VIX) autour de la période. Sans dates : la zone affichée (voir selectionner_une_zone). À combiner avec les actualités et le contexte macro pour expliquer précisément le mouvement.",
     inputSchema: {
       type: "object",
       properties: {

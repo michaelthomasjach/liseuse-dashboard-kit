@@ -58,7 +58,8 @@
 .lq-chart-settings__nav-item--active,
 .lq-chart-settings__nav-item--active:hover {
   background-color: color-mix(in srgb, var(--lq-color-text) 9%, transparent);
-  box-shadow: inset 3px 0 0 var(--lq-color-accent);
+  /* Le fond suffit à marquer l'onglet ouvert : pas de trait sur le bord. */
+  box-shadow: none;
   color: var(--lq-color-text);
   font-weight: var(--lq-font-weight-semibold, 600);
 }
@@ -463,3 +464,8 @@
   border-color: var(--lq-color-border);
   font-weight: var(--lq-font-weight-semibold, 600);
 }
+
+/* Opacité du fond : curseur et valeur sur la ligne. */
+.lq-chart-settings__slider { display: inline-flex; width: 160px; }
+.lq-chart-settings__slider > * { flex: 1; }
+.lq-chart-settings__slider-value { min-width: 3.5em; font-variant-numeric: tabular-nums; color: var(--lq-color-text-muted); }

@@ -132,7 +132,7 @@ import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timefr
 import { sameStyle, styleOf, toolKeyOf, useDrawingStylePresets, withStyle } from "./candlestick/drawingStylePresets";
 import { useIndicatorTemplates } from "./candlestick/hooks/useIndicatorPresets";
 import { dayMonthYearFormat } from "./internal/dateFormat";
-import { axisLabelsAttribute, chartStyleCssVars, chartStyleDateFormatter, DEFAULT_RESET_ZOOM_BARS, effectiveChartStyle, type ChartYAxisGutter } from "./candlestick/chartStyle";
+import { axisLabelsAttribute, chartStyleCssVars, chartStyleDateFormatter, DEFAULT_RESET_ZOOM_BARS, effectiveChartStyle, isTranslucentChart, type ChartYAxisGutter } from "./candlestick/chartStyle";
 import { paneValueFormatter } from "./candlestick/indicatorCatalog";
 import { formatCompactNumber } from "./candlestick/formatting";
 import { DEFAULT_MARGIN, MOBILE_LAYOUT_BREAKPOINT, NARROW_EMBED_BREAKPOINT, PRICE_AXIS_WIDTH_MOBILE, SUB_PANE_COLLAPSED_HEIGHT, TOOLS_RAIL_HEIGHT_MOBILE, TOOLS_RAIL_WIDTH } from "./candlestick/constants";
@@ -1027,6 +1027,29 @@ function CandlestickChartBody({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Ctrl + flèche haut / bas (⌘ sur Mac) : unité de temps suivante, plus longue, ou précédente, plus courte, dans
+  // l'ordre de la liste de l'en-tête. Même cible que Ctrl+Espace (graphique survolé ou qui a le focus) ; jamais pendant
+  // une saisie, où la combinaison appartient au champ.
+  const timeframeStepRef = useRef({ timeframes, timeframe, onTimeframeChange });
+  timeframeStepRef.current = { timeframes, timeframe, onTimeframeChange };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+      const root = mainRef.current;
+      if (!root || !(root.matches(":hover") || root.contains(document.activeElement))) return;
+      const { timeframes: list, timeframe: current, onTimeframeChange: change } = timeframeStepRef.current;
+      const values = flattenTimeframeValues(list);
+      if (!change || values.length === 0) return;
+      const at = current === undefined ? -1 : values.indexOf(current);
+      const next = values[Math.max(0, Math.min(values.length - 1, (at === -1 ? 0 : at) + (e.key === "ArrowUp" ? 1 : -1)))];
+      e.preventDefault();
+      if (next !== undefined && next !== current) change(next);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
   // Ctrl+Z / Cmd+Z undoes the last change to the drawings, Ctrl+Y / Ctrl+Shift+Z (Cmd+Shift+Z) redoes
   // it. Only for this chart when several share a page: the one under the pointer or holding focus,
@@ -2686,7 +2709,7 @@ function CandlestickChartBody({
 
   return (
     <div
-      className={["lq-chart", isFullscreen && "lq-chart--fullscreen", placementActive && "lq-chart--placing", symbolSearchOpen && "lq-chart--symbol-search", className].filter(Boolean).join(" ")}
+      className={["lq-chart", isFullscreen && "lq-chart--fullscreen", placementActive && "lq-chart--placing", symbolSearchOpen && "lq-chart--symbol-search", isTranslucentChart(appliedStyle) && "lq-chart--translucent", className].filter(Boolean).join(" ")}
       // Jamais le menu du navigateur sur le graphique, ses modales et ses menus compris (voir chartContextMenu).
       onContextMenuCapture={claimChartContextMenu}
       style={{ width: isFullscreen ? undefined : width }}

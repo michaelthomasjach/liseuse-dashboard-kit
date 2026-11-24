@@ -5,6 +5,7 @@ import { Checkbox } from "../../../forms/Checkbox";
 import { Button } from "../../../primitives/Button";
 import { Select } from "../../../forms/Select";
 import { ColorPicker } from "../../../forms/ColorPicker";
+import { Slider } from "../../../forms/Slider";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CodeIcon } from "../../../icons";
 import { capitalize } from "../formatting";
 import { CHART_DISPLAY_MODES } from "../chartModes";
@@ -688,6 +689,20 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
           </Section>
         )}
         <Section title="Styles de base du graphique">
+          {/* Fond translucide : ce qui est derrière le graphique (halo animé de la page…) transparaît. */}
+          <Row label="Opacité du fond">
+            <span className="lq-chart-settings__slider">
+              <Slider
+                min={0}
+                max={100}
+                step={5}
+                value={chartStyle.backgroundOpacity ?? 100}
+                onChange={(v) => set({ backgroundOpacity: v >= 100 ? undefined : v })}
+                aria-label="Opacité du fond du graphique"
+              />
+            </span>
+            <span className="lq-chart-settings__slider-value">{chartStyle.backgroundOpacity ?? 100} %</span>
+          </Row>
           {advancedAppearance && (
             <>
               <Row label="Fond">

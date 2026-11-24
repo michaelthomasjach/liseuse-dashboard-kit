@@ -75,6 +75,10 @@ export interface ChartStyleSettings {
   backgroundType?: "solid" | "gradient";
   backgroundColor?: string;
   backgroundColor2?: string;
+  /** Opacité du fond du tracé, en % (100 : opaque, défaut). En dessous, le fond (celui du thème ou `backgroundColor`)
+   *  devient translucide et ce qui est derrière le graphique transparaît — un halo animé de la page, par exemple ;
+   *  le graphique et son espace de travail laissent alors leur propre fond plein. */
+  backgroundOpacity?: number;
   /** Grille verticale (aux dates de l'axe du temps). Défaut faux. */
   vertGridVisible?: boolean;
   vertGridColor?: string;
@@ -443,6 +447,7 @@ export const CANVAS_STYLE_KEYS: (keyof ChartStyleSettings)[] = [
   "backgroundType",
   "backgroundColor",
   "backgroundColor2",
+  "backgroundOpacity",
   "vertGridVisible",
   "vertGridColor",
   "vertGridStyle",
@@ -550,7 +555,21 @@ export function chartStyleCssVars(style: ChartStyleSettings): CSSProperties {
         ? `linear-gradient(to bottom, ${style.backgroundColor}, ${style.backgroundColor2})`
         : style.backgroundColor;
   }
+  if (isTranslucentChart(style)) {
+    const share = `${Math.max(0, Math.min(100, style.backgroundOpacity ?? 100))}%`;
+    const mix = (c: string) => `color-mix(in srgb, ${c} ${share}, transparent)`;
+    vars.background = style.backgroundColor
+      ? style.backgroundType === "gradient" && style.backgroundColor2
+        ? `linear-gradient(to bottom, ${mix(style.backgroundColor)}, ${mix(style.backgroundColor2)})`
+        : mix(style.backgroundColor)
+      : mix("var(--lq-color-bg)");
+  }
   return vars as CSSProperties;
+}
+
+/** Fond translucide (opacité du fond sous 100 %) : le graphique et son espace de travail laissent leur fond plein. */
+export function isTranslucentChart(style: ChartStyleSettings): boolean {
+  return style.backgroundOpacity !== undefined && style.backgroundOpacity < 100;
 }
 
 function hexRgb(hex: string): [number, number, number] | null {

@@ -134,7 +134,7 @@ export interface Indicator {
    *  échelle courante), fuseau de la journée (« Europe/Paris »), nombre de séances tracées (5), éléments affichés
    *  (tous oui par défaut) et couleurs de la médiane et de la SMA. Voir `EXPECTED_VOLATILITY_DEFAULTS`. */
   expVolSmaPeriod?: number;
-  expVolTimeframe?: "chart" | "15m" | "30m" | "1h" | "4h" | "1d";
+  expVolTimeframe?: "chart" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
   expVolTimeZone?: string;
   expVolSessions?: number;
   expVolShowLow?: boolean;

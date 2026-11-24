@@ -11,7 +11,7 @@ import type { IndicatorExpectedVolatilityPoint } from "./interfaces/IndicatorExp
  *  Séparé d'indicators.ts (budget de lignes) comme patternRecognition.ts ; le rendu est dans
  *  render/drawExpectedVolatility.ts. */
 
-export type ExpectedVolatilityTimeframe = "chart" | "15m" | "30m" | "1h" | "4h" | "1d";
+export type ExpectedVolatilityTimeframe = "chart" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
 
 /** Valeurs par défaut, identiques à celles du script Pine. Couleurs : `color.gray`, `color.orange`, `color.aqua` de
  *  TradingView. La couleur de l'ATR est celle de l'indicateur (`Indicator.color`). */
@@ -39,6 +39,7 @@ export const EXPECTED_VOLATILITY_TIMEFRAMES: { value: ExpectedVolatilityTimefram
   { value: "1h", label: "1 heure" },
   { value: "4h", label: "4 heures" },
   { value: "1d", label: "1 jour" },
+  { value: "1w", label: "1 semaine" },
 ];
 
 const MINUTE = 60_000;
@@ -48,6 +49,7 @@ const TIMEFRAME_MS: Record<Exclude<ExpectedVolatilityTimeframe, "chart">, number
   "1h": 60 * MINUTE,
   "4h": 240 * MINUTE,
   "1d": 1440 * MINUTE,
+  "1w": 7 * 1440 * MINUTE,
 };
 
 /** ATR de Wilder, exactement `ta.atr(period)` de Pine : range vrai = H − L sur la toute première bougie (pas de
@@ -196,7 +198,9 @@ export function computeExpectedVolatilityValues(data: Candle[], settings: Expect
   // Même règle que `utPlusGrande` dans Pine : seule une échelle strictement plus large que le graphique regroupe des
   // bougies ; « 1 jour » sur un graphique journalier revient à l'échelle courante.
   const perCandle = wanted === 0 || (interval > 0 && wanted <= interval);
-  const dayMode = settings.timeframe === "1d" && !perCandle;
+  // « 1 semaine » : comme « 1 jour », une période par semaine calendaire du fuseau choisi (lundi 00:00 → dimanche 23:59).
+  const weekMode = settings.timeframe === "1w" && !perCandle;
+  const dayMode = (settings.timeframe === "1d" || weekMode) && !perCandle;
   const scaleLabel = settings.timeframe === "chart" || perCandle ? intervalLabel(interval) : EXPECTED_VOLATILITY_TIMEFRAMES.find((t) => t.value === settings.timeframe)!.label;
 
   // 1. Les bougies de l'échelle choisie.
@@ -210,6 +214,14 @@ export function computeExpectedVolatilityValues(data: Candle[], settings: Expect
     if (perCandle) {
       key = i;
       endTime = t + interval;
+    } else if (weekMode) {
+      const day = zonedDay(t, settings.timeZone);
+      // Jour de la semaine de la date du fuseau (0 dimanche … 6 samedi), ramené au lundi.
+      const [y, m, d] = day.key.split("-").map(Number);
+      const sinceMonday = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
+      const monday = day.midnight - sinceMonday * 1440 * MINUTE;
+      key = `w${new Date(Date.UTC(y, m - 1, d - sinceMonday)).toISOString().slice(0, 10)}`;
+      endTime = monday + 7 * 1440 * MINUTE;
     } else if (dayMode) {
       const day = zonedDay(t, settings.timeZone);
       key = day.key;

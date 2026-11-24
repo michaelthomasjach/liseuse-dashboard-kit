@@ -2407,3 +2407,9 @@
   justify-content: center;
   pointer-events: none;
 }
+
+/* Une fenêtre au fond translucide : l'espace de travail laisse son fond plein (voir .lq-chart--translucent). */
+.lq-chart-workspace:has(.lq-chart--translucent),
+.lq-chart-workspace--fullscreen:has(.lq-chart--translucent) {
+  background-color: transparent;
+}

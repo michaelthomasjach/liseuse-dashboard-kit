@@ -455,7 +455,7 @@ const ENUM_FIELDS: Record<string, readonly string[]> = {
   fundamentalDisplayMode: ["value", "yoyChange"],
   fundamentalChartStyle: ["line", "step", "area"],
   projectionMethod: ["linear", "quadratic", "mean", "damped", "regression", "holt"],
-  expVolTimeframe: ["chart", "15m", "30m", "1h", "4h", "1d"],
+  expVolTimeframe: ["chart", "15m", "30m", "1h", "4h", "1d", "1w"],
 };
 const BOOLEAN_FIELDS = new Set([
   "macdShowHistogram", "hoverSync", "zigzagShowLabels", "pivotShowLastOnly", "chandelierUseClose", "chandelierShowLabels", "chandelierHighlightState",

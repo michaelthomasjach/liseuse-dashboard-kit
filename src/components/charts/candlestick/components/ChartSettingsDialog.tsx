@@ -697,7 +697,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                 max={100}
                 step={5}
                 value={chartStyle.backgroundOpacity ?? 100}
-                onChange={(v) => set({ backgroundOpacity: v >= 100 ? undefined : v })}
+                onChange={(v) => set({ backgroundOpacity: v })}
                 aria-label="Opacité du fond du graphique"
               />
             </span>

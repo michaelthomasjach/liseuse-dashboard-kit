@@ -468,7 +468,9 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  border-radius: calc(var(--lq-radius-sm) - 1px);
+  /* La forme du bouton lui-même (carré arrondi, ou rond dans un thème à boutons en pilule) : un rayon fixe laissait,
+     sur un bouton rond, des coins carrés qui mangeaient la bordure et décentraient le halo. */
+  border-radius: inherit;
   background: var(--lq-color-panel);
 }
 /* Icône volontairement plus petite (13 px) que celles des autres boutons (16 px) : la case garde la même largeur que
@@ -476,6 +478,8 @@
 .lq-chart-workspace__side-rail .lq-chart__icon-button.lq-chart__ai-button {
   justify-content: center;
   min-width: calc(16px + 2 * 5px + 2px);
+  /* Aussi haut que large : un cercle, pas un ovale, dans un thème à boutons ronds. */
+  height: calc(16px + 2 * 5px + 2px);
 }
 .lq-chart__ai-button.lq-chart__icon-button--active::after {
   background: var(--lq-color-accent);

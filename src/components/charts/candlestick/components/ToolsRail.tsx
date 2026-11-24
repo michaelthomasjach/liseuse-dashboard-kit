@@ -378,7 +378,8 @@ export function ToolsRail({
         {rangeAsk && (
           <button
             type="button"
-            className={["lq-chart__icon-button", activeTool === "rangeAsk" && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+            // Bordure aux couleurs de l'IA, comme le bouton de l'assistant : c'est un outil d'IA.
+            className={["lq-chart__icon-button lq-chart__ai-button", activeTool === "rangeAsk" && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
             onClick={() => handleToolClick("rangeAsk")}
             aria-label="Interroger l'IA sur une zone"
             aria-pressed={activeTool === "rangeAsk"}

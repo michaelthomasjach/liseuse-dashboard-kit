@@ -195,6 +195,7 @@ export { DEFAULT_DAY_SEPARATORS } from "./candlestick/daySeparators";
 export type { PriceAlertLine } from "./candlestick/render/drawPriceAlertLines";
 // Conversations de l'assistant, gardées par l'application (CandlestickChartProps.ai.conversations).
 export type { AiConversation, AiConversationStore } from "./candlestick/ai/useAiAssistant";
+export { AiMarkdown, renderInline as renderAiMarkdownInline } from "./candlestick/ai/components/AiMarkdown";
 export { captureChartBlob, captureChartCanvas, captureFileName } from "./candlestick/captureChart";
 export type { ChartCaptureOptions } from "./candlestick/captureChart";
 export type { ScriptDocumentationModalProps } from "./candlestick/scripting/components/ScriptDocumentationModal";

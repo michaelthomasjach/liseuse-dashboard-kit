@@ -8,6 +8,7 @@ import { filterSlashCommands, slashCommandsFor, slashQueryAt, type SlashCommand 
 import { filterMentions, mentionQueryAt, mentionSegments, type Mentionable } from "../mentions";
 import { DictationButton } from "../../../../forms/Dictation";
 import "./AiPanel.css";
+import { AiMarkdown } from "./AiMarkdown";
 import type { ScriptReport } from "../../scripting/interfaces/ScriptReport.interface";
 import { ReportPrintWindow } from "../../scripting/components/ReportPrintWindow";
 import { ReportView } from "../../scripting/components/ReportView";
@@ -577,8 +578,9 @@ function AiTurn({ entries, running }: { entries: AiTranscriptEntry[]; running: i
       <div className="lq-ai__turn-body">
         {blocks.map((block, b) =>
           block.kind === "text" ? (
-            <div key={block.entry.id} className={["lq-ai__message", "lq-ai__message--assistant", block.entry.isError && "lq-ai__message--error"].filter(Boolean).join(" ")}>
-              {block.entry.text}
+            <div key={block.entry.id} className={["lq-ai__message", "lq-ai__message--assistant", "lq-ai__message--md", block.entry.isError && "lq-ai__message--error"].filter(Boolean).join(" ")}>
+              {/* Markdown de la réponse (titres, gras, liens, listes, tableaux) rendu aux couleurs du thème. */}
+              {block.entry.isError ? block.entry.text : <AiMarkdown text={block.entry.text} />}
             </div>
           ) : (
             <ul key={`steps-${b}`} className="lq-ai__steps">

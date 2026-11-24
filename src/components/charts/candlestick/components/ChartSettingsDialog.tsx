@@ -703,6 +703,10 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
             </span>
             <span className="lq-chart-settings__slider-value">{chartStyle.backgroundOpacity ?? 100} %</span>
           </Row>
+          {/* La page qui pose le graphique dans un cadre (marge, coins arrondis) l'étend jusqu'aux bords. */}
+          <Row label="Bord à bord" hint="Sans espace ni coins arrondis autour du graphique en plein écran">
+            <Checkbox checked={chartStyle.edgeToEdge === true} onChange={(v) => set({ edgeToEdge: v })} ariaLabel="Bord à bord" />
+          </Row>
           {advancedAppearance && (
             <>
               <Row label="Fond">

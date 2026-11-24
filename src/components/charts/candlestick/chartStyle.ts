@@ -79,6 +79,9 @@ export interface ChartStyleSettings {
    *  devient translucide et ce qui est derrière le graphique transparaît — un halo animé de la page, par exemple ;
    *  le graphique et son espace de travail laissent alors leur propre fond plein. */
   backgroundOpacity?: number;
+  /** Bord à bord : une page qui pose le graphique dans un cadre (marge, coins arrondis) l'étend jusqu'aux bords. Le
+   *  graphique n'en fait rien lui-même : il porte la classe `lq-chart--edge`, que la page lit. */
+  edgeToEdge?: boolean;
   /** Grille verticale (aux dates de l'axe du temps). Défaut faux. */
   vertGridVisible?: boolean;
   vertGridColor?: string;
@@ -448,6 +451,7 @@ export const CANVAS_STYLE_KEYS: (keyof ChartStyleSettings)[] = [
   "backgroundColor",
   "backgroundColor2",
   "backgroundOpacity",
+  "edgeToEdge",
   "vertGridVisible",
   "vertGridColor",
   "vertGridStyle",

@@ -2709,7 +2709,7 @@ function CandlestickChartBody({
 
   return (
     <div
-      className={["lq-chart", isFullscreen && "lq-chart--fullscreen", placementActive && "lq-chart--placing", symbolSearchOpen && "lq-chart--symbol-search", isTranslucentChart(appliedStyle) && "lq-chart--translucent", className].filter(Boolean).join(" ")}
+      className={["lq-chart", isFullscreen && "lq-chart--fullscreen", placementActive && "lq-chart--placing", symbolSearchOpen && "lq-chart--symbol-search", isTranslucentChart(appliedStyle) && "lq-chart--translucent", appliedStyle.edgeToEdge && "lq-chart--edge", className].filter(Boolean).join(" ")}
       // Jamais le menu du navigateur sur le graphique, ses modales et ses menus compris (voir chartContextMenu).
       onContextMenuCapture={claimChartContextMenu}
       style={{ width: isFullscreen ? undefined : width }}

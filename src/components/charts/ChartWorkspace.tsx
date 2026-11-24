@@ -36,6 +36,7 @@ import { useScriptingState } from "./candlestick/hooks/useScriptingState";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { panelScriptingProps } from "./workspace/panelScriptingProps";
 import { WorkspaceSideRail } from "./workspace/WorkspaceSideRail";
+import { WorkspaceLayoutMenu } from "./workspace/WorkspaceLayoutMenu";
 import { WorkspaceHelpModal, type WorkspaceHelpTab } from "./workspace/WorkspaceHelpModal";
 import { WorkspaceTour } from "./workspace/WorkspaceTour";
 import { WORKSPACE_TOUR_STEPS } from "./workspace/workspaceTourSteps";
@@ -1672,6 +1673,21 @@ function ChartWorkspaceBody({
             <CandleModeIcon size={18} />
             Graphique
           </button>
+          {/* Juste à droite de « Graphique » : le même menu que le bouton « Disposition des fenêtres »
+              du rail, absent sur mobile — un téléphone n'avait aucun moyen d'afficher une ou
+              plusieurs fenêtres. Choisir une disposition ramène sur les graphiques si la liste
+              était ouverte, pour voir tout de suite le résultat. Sur ce gabarit les fenêtres
+              s'empilent quelle que soit la disposition (voir ChartWorkspace.css) ; le choix exact
+              reste celui que retrouvera le bureau. */}
+          <WorkspaceLayoutMenu
+            variant="bottomnav"
+            layout={currentGridLayout}
+            onLayoutChange={(next) => {
+              setMobileProfileTicker(null);
+              sidePanelState.commitOpen(false);
+              handleGridLayoutChange(next);
+            }}
+          />
           <button
             type="button"
             className={["lq-chart-workspace__mobile-bottomnav-item", sidePanelState.open && "lq-chart-workspace__mobile-bottomnav-item--active"]

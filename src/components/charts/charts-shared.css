@@ -666,9 +666,12 @@
    (panneau en verre d'un thème, carte animée…) : ce conteneur devient le cadre d'un élément `position: fixed`, et le
    graphique se calait sur lui au lieu de l'écran, décalé et coupé. Tant qu'un graphique est en plein écran, ses
    conteneurs perdent ces propriétés (et leur ordre d'empilement propre, pour que le graphique passe au-dessus de l'en-tête
-   de la page). */
-:has(> .lq-chart--fullscreen),
-:has(.lq-chart--fullscreen),
+   de la page).
+   Sauf pour la fenêtre agrandie d'un espace de travail (`__panel--focused`) : elle ne couvre que la grille, en
+   `position: absolute`, et n'a besoin d'aucun de ces retraits. Les lui appliquer faisait perdre son z-index à la page
+   qui contient l'espace de travail : l'en-tête du site repassait par-dessus et captait le doigt. */
+:has(> .lq-chart--fullscreen:not(.lq-chart-workspace__panel--focused)),
+:has(.lq-chart--fullscreen:not(.lq-chart-workspace__panel--focused)),
 :has(.lq-chart-workspace--fullscreen) {
   transform: none !important;
   filter: none !important;

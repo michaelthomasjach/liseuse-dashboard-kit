@@ -1238,6 +1238,23 @@
   max-width: min(420px, calc(100vw - 64px));
 }
 
+/* Le même menu ouvert depuis la barre du bas du mobile : il tient dans l'écran du téléphone (icônes plus petites,
+   lignes qui passent à la ligne avant le bord, défilement vertical au-delà de la hauteur disponible) au lieu de
+   déborder à droite et en bas. */
+.lq-chart-workspace__layout-menu--compact {
+  max-height: calc(100dvh - 96px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.lq-chart-workspace__layout-menu--compact .lq-chart-workspace__layout-menu-options {
+  max-width: calc(100vw - 64px);
+}
+
+.lq-chart-workspace__layout-menu--compact .lq-chart-workspace__layout-option {
+  padding: 6px;
+}
+
 .lq-chart-workspace__layout-option {
   display: inline-flex;
   align-items: center;

@@ -6,6 +6,10 @@ import { GRID_LAYOUTS_BY_PANELS, gridLayoutLabel, type ChartWorkspaceGridLayout 
 export interface WorkspaceLayoutMenuProps {
   layout: ChartWorkspaceGridLayout;
   onLayoutChange: (layout: ChartWorkspaceGridLayout) => void;
+  /** `rail` (défaut) : bouton icône du rail du bureau, liste ouverte en dessous. `bottomnav` : onglet
+   *  de la barre du bas du mobile (icône au-dessus de « Disposition »), liste ouverte au-dessus —
+   *  sans lui, un téléphone n'avait aucun moyen de passer d'une à plusieurs fenêtres. */
+  variant?: "rail" | "bottomnav";
 }
 
 const OPTION_CLASS = "lq-chart-workspace__layout-option";
@@ -19,7 +23,8 @@ const OPTION_CLASS = "lq-chart-workspace__layout-option";
  *  la disposition courante à l'ouverture, les flèches se déplacent d'icône en icône (gauche/droite
  *  dans l'ordre, haut/bas d'une ligne à l'autre), Échap ferme et rend le focus au bouton (voir
  *  `Popover`). */
-export function WorkspaceLayoutMenu({ layout, onLayoutChange }: WorkspaceLayoutMenuProps) {
+export function WorkspaceLayoutMenu({ layout, onLayoutChange, variant = "rail" }: WorkspaceLayoutMenuProps) {
+  const bottomnav = variant === "bottomnav";
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => setOpen(false), []);
@@ -54,23 +59,35 @@ export function WorkspaceLayoutMenu({ layout, onLayoutChange }: WorkspaceLayoutM
       <button
         ref={triggerRef}
         type="button"
-        className={["lq-chart__icon-button", "lq-chart-workspace__layout-trigger", open && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+        className={(bottomnav
+          ? ["lq-chart-workspace__mobile-bottomnav-item", "lq-chart-workspace__layout-trigger--bottomnav", open && "lq-chart-workspace__mobile-bottomnav-item--active"]
+          : ["lq-chart__icon-button", "lq-chart-workspace__layout-trigger", open && "lq-chart__icon-button--active"]
+        )
+          .filter(Boolean)
+          .join(" ")}
         onClick={() => setOpen((o) => !o)}
         aria-label={`Disposition des fenêtres (${currentLabel})`}
         aria-haspopup="true"
         aria-expanded={open}
         title={`Disposition des fenêtres — ${currentLabel}`}
       >
-        <GridLayoutIcon layout={layout} width={16} height={12} />
+        {bottomnav ? (
+          <>
+            <GridLayoutIcon layout={layout} width={22} height={16} />
+            Disposition
+          </>
+        ) : (
+          <GridLayoutIcon layout={layout} width={16} height={12} />
+        )}
       </button>
       <Popover
         open={open}
         onClose={close}
         anchorRef={triggerRef}
-        placement="bottom"
+        placement={bottomnav ? "top" : "bottom"}
         initialFocus={(panel) => panel.querySelector<HTMLElement>(`.${OPTION_CLASS}--selected`)}
       >
-        <div className="lq-chart-workspace__layout-menu" role="group" aria-label="Disposition des fenêtres" onKeyDown={moveFocus}>
+        <div className={["lq-chart-workspace__layout-menu", bottomnav && "lq-chart-workspace__layout-menu--compact"].filter(Boolean).join(" ")} role="group" aria-label="Disposition des fenêtres" onKeyDown={moveFocus}>
           {GRID_LAYOUTS_BY_PANELS.map(({ panels, layouts }) => (
             <div key={panels} className="lq-chart-workspace__layout-menu-row" role="group" aria-label={panels === 1 ? "1 fenêtre" : `${panels} fenêtres`}>
               <span className="lq-chart-workspace__layout-menu-count" aria-hidden="true">
@@ -93,7 +110,7 @@ export function WorkspaceLayoutMenu({ layout, onLayoutChange }: WorkspaceLayoutM
                         setOpen(false);
                       }}
                     >
-                      <GridLayoutIcon layout={option} />
+                      <GridLayoutIcon layout={option} {...(bottomnav ? { width: 22, height: 16 } : {})} />
                     </button>
                   );
                 })}

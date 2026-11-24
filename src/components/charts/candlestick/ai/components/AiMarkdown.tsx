@@ -10,7 +10,7 @@ import { Fragment, type ReactNode } from "react";
 const SAFE_URL = /^(?:https?:\/\/|mailto:)/i;
 
 /** Inline Markdown: links, bare URLs, `code`, **bold**, __bold__, *italic*, _italic_, ~~strike~~. */
-const INLINE =
+const INLINE_SOURCE =
   /(\[([^\]]+)\]\(([^)\s]+)\))|(`([^`]+)`)|(\*\*([^*]+?)\*\*|__([^_]+?)__)|(~~([^~]+?)~~)|((?<![\w*])\*([^*\s][^*]*?)\*(?![\w*])|(?<!\w)_([^_\s][^_]*?)_(?!\w))|(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"])/g;
 
 export function renderInline(text: string, keyPrefix = "i"): ReactNode[] {
@@ -18,8 +18,10 @@ export function renderInline(text: string, keyPrefix = "i"): ReactNode[] {
   let last = 0;
   let m: RegExpExecArray | null;
   let n = 0;
-  INLINE.lastIndex = 0;
-  while ((m = INLINE.exec(text))) {
+  // A fresh expression per call: the renderer recurses (bold inside a link…), and a shared /g regex would have its
+  // lastIndex reset by the inner call, looping the outer one forever.
+  const re = new RegExp(INLINE_SOURCE.source, "g");
+  while ((m = re.exec(text))) {
     if (m.index > last) out.push(text.slice(last, m.index));
     const key = `${keyPrefix}-${n++}`;
     if (m[1]) {

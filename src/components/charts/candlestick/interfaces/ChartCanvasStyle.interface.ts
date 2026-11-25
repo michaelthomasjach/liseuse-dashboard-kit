@@ -37,6 +37,8 @@ export interface ChartCanvasStyle {
   vertGrid?: { color: string; dash: number[] };
   /** Séparateurs entre panneaux ; absent : `colorGrid`. */
   colorPaneSeparator?: string;
+  /** Épaisseur des séparateurs entre panneaux (px) ; absente : 2. */
+  paneSeparatorWidth?: number;
   /** Réticule ; absent : `colorMuted`, tirets « 3 3 », 1 px. */
   crosshair?: { color: string; dash: number[]; width: number };
   /** Ligne du dernier prix : forcée visible / masquée (absent : seulement en direct), tirets, couleur. */

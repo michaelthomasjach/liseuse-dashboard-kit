@@ -91,8 +91,9 @@ export interface ChartStyleSettings {
   horzGridColor?: string;
   /** Défaut : celui du thème (pointillés « 2 3 »). */
   horzGridStyle?: ChartLineStyle;
-  /** Séparateurs entre panneaux. */
+  /** Séparateurs entre panneaux : couleur et épaisseur (px, 2 par défaut). */
   paneSeparatorColor?: string;
+  paneSeparatorWidth?: number;
   /** Réticule. Défaut : couleur de texte atténuée, tirets, 1 px. */
   crosshairColor?: string;
   crosshairStyle?: ChartLineStyle;
@@ -459,6 +460,7 @@ export const CANVAS_STYLE_KEYS: (keyof ChartStyleSettings)[] = [
   "horzGridColor",
   "horzGridStyle",
   "paneSeparatorColor",
+  "paneSeparatorWidth",
   "crosshairColor",
   "crosshairStyle",
   "crosshairWidth",
@@ -528,6 +530,7 @@ export function chartStyleCssVars(style: ChartStyleSettings): CSSProperties {
   if (style.scaleTextSize) vars["--lq-chart-axis-size"] = `${style.scaleTextSize}px`;
   if (style.scaleLineColor) vars["--lq-chart-domain-color"] = style.scaleLineColor;
   if (style.paneSeparatorColor) vars["--lq-chart-pane-separator-color"] = style.paneSeparatorColor;
+  if (style.paneSeparatorWidth) vars["--lq-chart-pane-separator-width"] = `${style.paneSeparatorWidth}px`;
   if (style.watermarkColor) vars["--lq-chart-watermark-color"] = style.watermarkColor;
   for (const [name, color] of axisLabelColors(style)) if (color) vars[`--lq-chart-${name}`] = color;
   // Mode imposé différent de celui du site : la zone du graphique prend les jetons de surface de ce mode, pour que la

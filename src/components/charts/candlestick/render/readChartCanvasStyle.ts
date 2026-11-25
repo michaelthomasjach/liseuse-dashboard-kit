@@ -73,6 +73,7 @@ export function applyChartStyle(style: ChartCanvasStyle, chartStyle: ChartStyleS
     gridDashH: s.horzGridStyle ? lineDash(s.horzGridStyle, style.gridDash) : undefined,
     vertGrid: s.vertGridVisible ? { color: s.vertGridColor ?? style.colorGrid, dash: lineDash(s.vertGridStyle, style.gridDash) } : undefined,
     colorPaneSeparator: s.paneSeparatorColor,
+    paneSeparatorWidth: s.paneSeparatorWidth,
     crosshair:
       s.crosshairColor || s.crosshairStyle || s.crosshairWidth
         ? { color: s.crosshairColor ?? style.colorMuted, dash: lineDash(s.crosshairStyle, [3, 3]), width: s.crosshairWidth ?? 1 }

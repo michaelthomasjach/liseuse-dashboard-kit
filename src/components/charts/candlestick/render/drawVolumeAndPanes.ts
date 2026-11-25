@@ -58,7 +58,7 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
       // only separation). Drawn even collapsed, separating it from the pane's own header strip.
       ctx.save();
       ctx.strokeStyle = style.colorPaneSeparator ?? colorGrid;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = style.paneSeparatorWidth ?? 2;
       ctx.beginPath();
       const dividerY = snapPixel(priceHeight + volumeTop);
       ctx.moveTo(0, dividerY);
@@ -164,7 +164,7 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
 
       ctx.save();
       ctx.strokeStyle = style.colorPaneSeparator ?? colorGrid;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = style.paneSeparatorWidth ?? 2;
       ctx.beginPath();
       const dividerY = snapPixel(paneTop);
       ctx.moveTo(0, dividerY);

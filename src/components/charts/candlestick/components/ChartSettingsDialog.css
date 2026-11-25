@@ -383,6 +383,7 @@
 /* Rendu du graphique piloté par ces réglages (voir chartStyle.ts). */
 .lq-chart__plot .lq-chart__price-volume-divider {
   stroke: var(--lq-chart-pane-separator-color, var(--lq-color-border-subtle));
+  stroke-width: var(--lq-chart-pane-separator-width, 2px);
 }
 
 /* Fond personnalisé : la légende et les en-têtes de panneaux passent sur une couleur de texte lisible sur ce fond. */

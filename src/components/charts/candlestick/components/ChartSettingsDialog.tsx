@@ -738,8 +738,15 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                 <ColorPicker value={chartStyle.horzGridColor ?? tc.grid} onChange={(c) => set({ horzGridColor: c })} disabled={!horz} aria-label="Couleur de la grille horizontale" />
                 <Checkbox checked={horz} onChange={() => set({ horzGridVisible: horz ? false : undefined })} ariaLabel="Lignes de grille horizontales" />
               </Row>
-              <Row label="Séparateurs de panneaux">
-                <ColorPicker value={chartStyle.paneSeparatorColor ?? tc.grid} onChange={(c) => set({ paneSeparatorColor: c })} aria-label="Couleur des séparateurs de panneaux" />
+              <Row label="Séparateurs de panneaux" hint="Couleur et épaisseur">
+                <ColorPicker
+                  value={chartStyle.paneSeparatorColor ?? tc.grid}
+                  onChange={(c) => set({ paneSeparatorColor: c })}
+                  thickness={chartStyle.paneSeparatorWidth ?? 2}
+                  thicknessOptions={[1, 2, 3, 4, 6]}
+                  onThicknessChange={(w) => set({ paneSeparatorWidth: w === 2 ? undefined : w })}
+                  aria-label="Couleur et épaisseur des séparateurs de panneaux"
+                />
               </Row>
               <Row label="Réticule" hint="Style, couleur et épaisseur">
                 {lineStyleSelect(chartStyle.crosshairStyle ?? "dashed", (v) => set({ crosshairStyle: v }), "Style du réticule")}

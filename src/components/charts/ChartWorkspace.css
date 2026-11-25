@@ -1814,10 +1814,14 @@
    Scope note: this covers the side panel (both mobile pages), the topbar and the bottom nav — the
    text you actually read. The chart's own legend, tool rail and axis labels live in
    charts-shared.css and are shared with the desktop layout; they're untouched here. */
-.lq-chart-workspace--mobile .lq-chart-workspace__mobile-bottomnav-item,
 .lq-chart-workspace--mobile .lq-chart-workspace__watchlist-row--header {
   font-size: 0.506rem;
 }
+
+/* La barre du bas du téléphone (Graphique, Listes, Disposition, IA, Paramètres) garde sa taille : libellés à 0,65 rem
+   et icônes de 20 px, lisibles et faciles à toucher. */
+.lq-chart-workspace--mobile .lq-chart-workspace__mobile-bottomnav-item { font-size: 0.65rem; }
+.lq-chart-workspace--mobile .lq-chart-workspace__mobile-bottomnav-item svg { width: 20px; height: 20px; }
 
 .lq-chart-workspace--mobile .lq-chart-workspace__side-panel-title,
 .lq-chart-workspace--mobile .lq-chart-workspace__watchlist-row-main {

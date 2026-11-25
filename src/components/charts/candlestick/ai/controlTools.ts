@@ -296,6 +296,7 @@ const STYLE_KEYS: Partial<Record<keyof ChartStyleSettings, StyleKeyDoc>> = {
   horzGridColor: { type: "string", description: "Toile : couleur de la grille horizontale." },
   horzGridStyle: { type: "string", enum: LINE_STYLES, description: "Toile : style de la grille horizontale." },
   paneSeparatorColor: { type: "string", description: "Toile : séparateurs entre panneaux." },
+  paneSeparatorWidth: { type: "number", description: "Toile : épaisseur des séparateurs entre panneaux (px, 1 à 6, 2 par défaut)." },
   crosshairColor: { type: "string", description: "Toile : couleur du réticule." },
   crosshairStyle: { type: "string", enum: LINE_STYLES, description: "Toile : style du réticule." },
   crosshairWidth: { type: "number", description: "Toile : épaisseur du réticule (px)." },

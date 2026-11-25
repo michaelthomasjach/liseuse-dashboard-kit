@@ -184,12 +184,27 @@ export function AiMarkdown({ text, className }: { text: string; className?: stri
       flushQuote();
       continue;
     }
-    const heading = /^(#{1,6})\s+(.*?)\s*#*$/.exec(line);
+    // Titre : « ## … », ou une ligne entièrement en gras (titre que le modèle écrit souvent ainsi).
+    const heading = /^(#{1,6})\s+(.*?)\s*#*$/.exec(line) ?? (/^\*\*([^*]+?)\*\*:?$/.test(line) ? ["", "###", line.replace(/^\*\*|\*\*:?$/g, "")] : null);
     if (heading) {
       flushAll();
       const level = Math.min(6, heading[1]!.length + 2);
       const Tag = `h${Math.max(3, level)}` as "h3" | "h4" | "h5" | "h6";
       const key = k();
+      // Titre numéroté (« 1. Titre — thème ») : numéro en grand, façon magazine (« 01. »), aussi haut que le titre et
+      // son sous-titre réunis ; le sous-titre est ce qui suit « — » (ou « | »).
+      const numbered = /^(\d{1,2})[.)]\s+(.+)$/.exec(heading[2] ?? "");
+      if (numbered) {
+        const [title, kicker] = numbered[2]!.split(/\s+[—|]\s+/, 2) as [string, string | undefined];
+        blocks.push(
+          <Tag key={key} className={`lq-ai-md__h lq-ai-md__h--${heading[1]!.length} lq-ai-md__h--numbered`}>
+            <span className="lq-ai-md__h-num" aria-hidden="true">{numbered[1]!.padStart(2, "0")}.</span>
+            <span className="lq-ai-md__h-title">{renderInline(title, key)}</span>
+            {kicker && <span className="lq-ai-md__h-kicker">{renderInline(kicker, `${key}k`)}</span>}
+          </Tag>,
+        );
+        continue;
+      }
       blocks.push(
         <Tag key={key} className={`lq-ai-md__h lq-ai-md__h--${heading[1]!.length}`}>
           {renderInline(heading[2] ?? "", key)}

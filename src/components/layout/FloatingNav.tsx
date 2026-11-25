@@ -51,13 +51,13 @@ export function FloatingNav({ items, title, side = "left", placement = "fixed", 
     list.scrollLeft = active.offsetLeft - (list.clientWidth - active.offsetWidth) / 2;
   }, [activeId]);
   // Bulle de survol (`.lq-floating-nav__bubble`), cachée par défaut : un thème l'allume en CSS (le thème Liquid le
-  // fait). Elle se pose sous l'entrée survolée (ou atteinte au clavier) et glisse d'une entrée à l'autre comme une
-  // goutte : le bord qui part vers la nouvelle entrée devance l'autre (`data-dir`), et la bulle s'étire un instant
-  // puis se remet en place (`data-squish`, qui alterne pour relancer l'animation). Elle s'efface quand le pointeur
-  // quitte la liste ; elle réapparaît sur place, sans glisser depuis l'entrée d'avant.
+  // fait). Elle se pose d'un coup sous l'entrée survolée (ou atteinte au clavier), sans glisser depuis l'entrée
+  // d'avant, et s'y déploie en cercle depuis le point où se trouve la souris (le centre de l'entrée au clavier) :
+  // `--lq-floating-nav-bubble-ox/oy/r`, et `data-grow`, qui alterne pour relancer l'animation à chaque entrée.
+  // Elle s'efface quand le pointeur quitte la liste.
   const bubbleRef = useRef<HTMLLIElement>(null);
   const lastBubble = useRef<{ top: number; bottom: number } | null>(null);
-  const moveBubble = useCallback((item: HTMLElement | null) => {
+  const moveBubble = useCallback((item: HTMLElement | null, point?: { x: number; y: number }) => {
     const list = listRef.current;
     const bubble = bubbleRef.current;
     if (!list || !bubble) return;
@@ -67,13 +67,20 @@ export function FloatingNav({ items, title, side = "left", placement = "fixed", 
     }
     const next = { top: item.offsetTop, bottom: list.clientHeight - (item.offsetTop + item.offsetHeight) };
     const before = lastBubble.current;
-    const moving = bubble.dataset.state === "shown" && before !== null && before.top !== next.top;
-    bubble.dataset.dir = moving ? (next.top > before.top ? "down" : "up") : "none";
-    if (moving) bubble.dataset.squish = bubble.dataset.squish === "a" ? "b" : "a";
+    const same = bubble.dataset.state === "shown" && before !== null && before.top === next.top;
     bubble.style.top = `${next.top}px`;
     bubble.style.bottom = `${next.bottom}px`;
     bubble.dataset.state = "shown";
     lastBubble.current = next;
+    if (same) return;
+    // Point de départ du déploiement, dans la bulle déjà posée ; le rayon atteint le coin le plus éloigné.
+    const r = bubble.getBoundingClientRect();
+    const ox = Math.min(Math.max((point?.x ?? r.left + r.width / 2) - r.left, 0), r.width);
+    const oy = Math.min(Math.max((point?.y ?? r.top + r.height / 2) - r.top, 0), r.height);
+    bubble.style.setProperty("--lq-floating-nav-bubble-ox", `${ox}px`);
+    bubble.style.setProperty("--lq-floating-nav-bubble-oy", `${oy}px`);
+    bubble.style.setProperty("--lq-floating-nav-bubble-r", `${Math.ceil(Math.hypot(Math.max(ox, r.width - ox), Math.max(oy, r.height - oy))) + 1}px`);
+    bubble.dataset.grow = bubble.dataset.grow === "a" ? "b" : "a";
   }, []);
   const focusVisible = (el: HTMLElement) => {
     try {
@@ -104,7 +111,7 @@ export function FloatingNav({ items, title, side = "left", placement = "fixed", 
               className={["lq-floating-nav__item", item.active && "lq-floating-nav__item--active"].filter(Boolean).join(" ")}
               aria-current={item.active ? "page" : undefined}
               onPointerEnter={(e) => {
-                if (e.pointerType !== "touch") moveBubble(e.currentTarget);
+                if (e.pointerType !== "touch") moveBubble(e.currentTarget, { x: e.clientX, y: e.clientY });
               }}
               onFocus={(e) => {
                 if (focusVisible(e.currentTarget)) moveBubble(e.currentTarget);

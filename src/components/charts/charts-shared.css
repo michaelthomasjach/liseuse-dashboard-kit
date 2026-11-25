@@ -5362,3 +5362,7 @@ button.lq-chart__legend-item {
   .lq-chart .lq-chart__external-fill-badge { font-size: 0.56rem; }
   .lq-chart .lq-chart__header-action { font-size: 10px; }
 }
+
+/* Titre d'une section des résultats (« Recherches récentes », « Tous les symboles »). */
+.lq-chart__symbol-search-section { margin: 10px 10px 4px; font-size: 0.7rem; font-weight: var(--lq-font-weight-semibold, 600); letter-spacing: 0.06em; text-transform: uppercase; color: var(--lq-color-text-muted); }
+.lq-chart__symbol-search-section:first-child { margin-top: 2px; }

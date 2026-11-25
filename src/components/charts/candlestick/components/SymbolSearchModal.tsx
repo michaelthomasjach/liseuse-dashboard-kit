@@ -29,6 +29,8 @@ export interface SymbolSearchModalProps {
   symbolSearchResults: SymbolSearchResult[] | undefined;
   /** Listes de l'utilisateur, proposées sous les catégories (voir `CandlestickChartProps.symbolLists`). */
   symbolLists?: SymbolSearchList[];
+  /** Voir `CandlestickChartProps.recentSymbols`. */
+  recentSymbols?: SymbolSearchResult[];
   /** Voir `CandlestickChartProps.onAddToSymbolList` : l'étoile ouvre alors le choix de la liste. */
   onAddToSymbolList?: (listId: string, result: SymbolSearchResult) => void;
   onRemoveFromSymbolList?: (listId: string, result: SymbolSearchResult) => void;
@@ -63,6 +65,7 @@ export function SymbolSearchModal({
   setSymbolSearchCategory,
   symbolSearchResults,
   symbolLists,
+  recentSymbols,
   onAddToSymbolList,
   onRemoveFromSymbolList,
   favoriteSymbolIds,
@@ -104,6 +107,18 @@ export function SymbolSearchModal({
   const shownResults = activeList
     ? activeList.symbols.filter((r) => !needle || r.ticker.toLowerCase().includes(needle) || r.name.toLowerCase().includes(needle))
     : symbolSearchResults;
+  // Sans texte saisi, catégorie « Toutes » : les derniers symboles consultés d'abord, puis tous les autres.
+  const recent = !activeList && !needle && symbolSearchCategory === "all" ? (recentSymbols ?? []) : [];
+  const recentIds = new Set(recent.map((r) => r.id));
+  type Item = { header: string } | { result: SymbolSearchResult };
+  const items: Item[] = recent.length
+    ? [
+        { header: "Recherches récentes" },
+        ...recent.map((result) => ({ result })),
+        { header: "Tous les symboles" },
+        ...(shownResults ?? []).filter((r) => !recentIds.has(r.id)).map((result) => ({ result })),
+      ]
+    : (shownResults ?? []).map((result) => ({ result }));
   const adding = symbolSearchMode === "add" && Boolean(onAddSymbolOverlay);
   const replacing = symbolSearchMode === "replace" && Boolean(onAddSymbolOverlay && replaceOverlay && handleReplaceSymbolOverlay);
   const replacedLabel = replaceOverlay ? [replaceOverlay.overlaySymbol, replaceOverlay.overlaySymbolName].filter(Boolean).join(" · ") : "";
@@ -184,10 +199,18 @@ export function SymbolSearchModal({
           )}
         </div>
         <div className="lq-chart__modal-split-content lq-chart__symbol-search-results">
-          {(shownResults ?? []).length === 0 ? (
+          {items.length === 0 ? (
             <p className="lq-chart__symbol-search-empty">{activeList ? (needle ? "Aucun symbole de cette liste ne correspond." : "Cette liste est vide.") : "Aucun résultat."}</p>
           ) : (
-            (shownResults ?? []).map((result, i) => {
+            items.map((item, i) => {
+              if ("header" in item) {
+                return (
+                  <p key={`h-${item.header}`} className="lq-chart__symbol-search-section">
+                    {item.header}
+                  </p>
+                );
+              }
+              const result = item.result;
               const isFavorite = favoriteSymbolIds?.includes(result.id) ?? false;
               const isOverlayActive = symbolOverlays.some((d) => d.overlaySymbol === result.ticker);
               const isOverlayLoading = addingOverlaySymbols.has(result.ticker);

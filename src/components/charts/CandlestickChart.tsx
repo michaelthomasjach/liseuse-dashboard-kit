@@ -284,6 +284,7 @@ function CandlestickChartBody({
   symbolSearch = false,
   symbolSearchResults,
   symbolLists,
+  recentSymbols,
   onAddToSymbolList,
   onRemoveFromSymbolList,
   onSymbolSearchChange,
@@ -3521,6 +3522,7 @@ function CandlestickChartBody({
         setSymbolSearchCategory={setSymbolSearchCategory}
         symbolSearchResults={symbolSearchResults}
         symbolLists={symbolLists}
+        recentSymbols={recentSymbols}
         onAddToSymbolList={onAddToSymbolList}
         onRemoveFromSymbolList={onRemoveFromSymbolList}
         favoriteSymbolIds={favoriteSymbolIds}

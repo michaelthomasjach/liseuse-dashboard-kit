@@ -131,6 +131,10 @@ export function useD3Zoom<T extends Element>({
         // Mirrors d3-zoom's own default filter exactly (ctrl+wheel is a trackpad pinch gesture,
         // not a modifier click, so it stays allowed; only ctrl+drag/click is rejected).
         const defaultOk = (!event.ctrlKey || event.type === "wheel") && !event.button;
+        // Deux doigts (ou plus) posés : toujours un zoom au pincement, même si l'un d'eux est sur un dessin, un
+        // indicateur ou une mesure (que le filtre de l'appelant refuse pour un doigt seul). d3-zoom reprend alors
+        // tous les doigts posés (event.touches), le premier compris, même si son propre appui avait été refusé.
+        if (event.type === "touchstart" && ((event as unknown as TouchEvent).touches?.length ?? 0) >= 2) return true;
         return defaultOk && (filterRef.current ? filterRef.current(event) : true);
       })
       .on("start", (event: d3.D3ZoomEvent<T, unknown>) => {

@@ -321,6 +321,13 @@ export function useDrawingInteractions({
   // trace un rectangle et sélectionne en direct chaque dessin qu'il touche ou englobe, ajouté à la sélection
   // d'avant l'appui (`base`) ; un simple clic sur un dessin l'ajoute à la sélection ou l'en retire.
   const selectPressRef = useRef<{ startClientX: number; startClientY: number; startX: number; startY: number; moved: boolean; base: string[]; hitId: string | null } | null>(null);
+  // Doigts posés sur le graphique (geste tactile en cours) : dès le deuxième, le geste est un pincement (zoom, mené par
+  // d3-zoom) et ce que le premier doigt avait commencé (déplacer un dessin, une poignée, la mesure, l'axe des prix,
+  // une sélection) est annulé. `pinchingRef` reste vrai jusqu'au prochain geste.
+  const touchIdsRef = useRef<Set<number>>(new Set());
+  const pinchingRef = useRef(false);
+  // Le dessin tel qu'il était à l'appui sur une de ses poignées : rendu tel quel si un pincement prend le geste.
+  const endpointOrigRef = useRef<TrendLineDrawing | null>(null);
   // Le rectangle en cours, en pixels du graphique (dessiné par ChartCanvasOverlay).
   const [selectionBox, setSelectionBox] = useState<SelectionRect | null>(null);
 
@@ -528,6 +535,7 @@ export function useDrawingInteractions({
       endpointPressRef.current = { id: drawingId, startClientX: e.clientX, startClientY: e.clientY, moved: false };
       if (drawingsLocked || drawings.find((d) => d.id === drawingId)?.locked) return;
       dragEndpointRef.current = { id: drawingId, pointIndex };
+      endpointOrigRef.current = drawings.find((d) => d.id === drawingId) ?? null;
     };
   }
 
@@ -545,6 +553,7 @@ export function useDrawingInteractions({
   }
 
   function handleEndpointPointerMove(e: React.PointerEvent<SVGCircleElement>) {
+    if (pinchingRef.current) return;
     const press = endpointPressRef.current;
     if (press && !press.moved) {
       if (Math.hypot(e.clientX - press.startClientX, e.clientY - press.startClientY) < CLICK_DRAG_THRESHOLD) return;
@@ -760,6 +769,8 @@ export function useDrawingInteractions({
     // Pose d'un point au doigt (useMobilePointPlacement) : un faux évènement dont `currentTarget` n'est pas un élément —
     // le garder ici faisait planter le survol suivant (`classList` absent).
     if (e.currentTarget instanceof Element) overlayElRef.current = e.currentTarget;
+    // Pincement : pas de survol ni de réticule qui sautent d'un doigt à l'autre pendant le zoom.
+    if (pinchingRef.current && e.pointerType === "touch") return;
     shiftHeldRef.current = e.shiftKey;
     if (data.length === 0) return;
     const rect = e.currentTarget.getBoundingClientRect();
@@ -936,7 +947,52 @@ export function useDrawingInteractions({
   // handling and broke X panning entirely. Window listeners never touch this element's pointer
   // capture, so d3-zoom's own gesture (handling X) is completely unaffected by this running
   // alongside it for Y.
+  /** Un deuxième doigt s'est posé : le geste devient un pincement. Ce que le premier doigt avait commencé est annulé
+   *  (un dessin ou une poignée déplacés reviennent à leur place) et ses captures relâchées, pour que d3-zoom zoome. */
+  function startPinch(el: SVGRectElement) {
+    pinchingRef.current = true;
+    const line = dragLineRef.current;
+    dragLineRef.current = null;
+    let restore: TrendLineDrawing | null = line && dragLineMovedRef.current ? line.orig : null;
+    if (dragEndpointRef.current) {
+      restore = endpointOrigRef.current;
+      dragEndpointRef.current = null;
+    }
+    endpointPressRef.current = null;
+    if (restore) {
+      const orig = restore;
+      commitDrawings(drawings.map((d) => (d.id === orig.id ? orig : d)));
+    }
+    const measure = dragMeasureBodyRef.current;
+    dragMeasureBodyRef.current = null;
+    if (measure) setMeasurePoints(measure.orig);
+    lockedPressRef.current = null;
+    quickPressRef.current = null;
+    drawPressRef.current = null;
+    if (selectPressRef.current) {
+      selectPressRef.current = null;
+      setSelectionBox(null);
+    }
+    yInertiaRef.current?.cancel();
+    yInertiaRef.current = null;
+    // Pas de clic ni de sélection au relâchement des doigts.
+    suppressClickRef.current = true;
+    for (const id of touchIdsRef.current) if (el.hasPointerCapture?.(id)) el.releasePointerCapture(id);
+  }
+
   function handleOverlayPointerDown(e: React.PointerEvent<SVGRectElement>) {
+    if (e.pointerType === "touch") {
+      // Premier doigt d'un nouveau geste : on repart de zéro (un relâchement perdu ne laisse pas de doigt fantôme).
+      if (e.isPrimary) {
+        touchIdsRef.current = new Set();
+        pinchingRef.current = false;
+      }
+      touchIdsRef.current.add(e.pointerId);
+      if (touchIdsRef.current.size >= 2) {
+        startPinch(e.currentTarget);
+        return;
+      }
+    }
     // A press whose release never reached this overlay (cancelled touch) must not select later.
     lockedPressRef.current = null;
     // Un nouvel appui : le `click` d'un glisser de tracé précédent ne viendra plus (le tactile n'en envoie pas).
@@ -1106,6 +1162,8 @@ export function useDrawingInteractions({
       setYTransform(d3.zoomIdentity.scale(startYTransform.k).translate(0, startYTransform.y / startYTransform.k + dy / startYTransform.k));
     };
     const onMove = (ev: PointerEvent) => {
+      // Pincement en cours : le zoom seul, l'axe des prix ne suit pas le premier doigt.
+      if (pinchingRef.current) return;
       if (yEngagedAt === null) {
         const rawDy = ev.clientY - startClientY;
         if (Math.abs(rawDy) < Y_PAN_DEADZONE_PX || Math.abs(rawDy) < 2 * Math.abs(ev.clientX - startClientX)) return;

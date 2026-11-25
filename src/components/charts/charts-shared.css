@@ -5332,3 +5332,33 @@ button.lq-chart__legend-item {
 .lq-chart.lq-chart--translucent.lq-chart--fullscreen {
   background-color: transparent;
 }
+
+/* Écran tactile : chaque canevas du graphique sur son propre calque de composition. Redessiner les bougies (cours en
+   direct, rafraîchissement des données) ne force plus le navigateur à recomposer ce qui est derrière (fond translucide,
+   halo de couleurs, flou du thème) : c'était un scintillement à chaque mise à jour sur téléphone. */
+@media (pointer: coarse) {
+  .lq-chart__canvas {
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+}
+
+/* Téléphone : textes du graphique plus petits (axes, légende, OHLC, indicateurs, panneaux, badges), pour laisser la
+   place au tracé. */
+@media (max-width: 640px) {
+  .lq-chart {
+    --lq-chart-axis-size: 0.6rem;
+    --lq-chart-legend-size: 0.66rem;
+    --lq-chart-title-size: 0.66rem;
+  }
+  .lq-chart .lq-chart__symbol-info-ohlc,
+  .lq-chart .lq-chart__symbol-info-sep { font-size: 0.6rem; }
+  .lq-chart .lq-chart__indicator-legend-item,
+  .lq-chart .lq-chart__indicator-legend-fold { font-size: 0.64rem; }
+  .lq-chart .lq-chart__pane-header-label { font-size: 0.6rem; }
+  .lq-chart .lq-chart__axis-value { font-size: 0.6rem; }
+  .lq-chart .lq-chart__live-countdown { font-size: 0.56rem; }
+  .lq-chart .lq-chart__external-fill-badge { font-size: 0.56rem; }
+  .lq-chart .lq-chart__header-action { font-size: 10px; }
+}

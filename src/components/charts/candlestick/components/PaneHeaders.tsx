@@ -155,8 +155,8 @@ export function PaneHeaders({
         data-pane-legend-fold={sourceId}
       >
         {collapsed ? <ChevronRightIcon size={16} /> : <ChevronLeftIcon size={16} />}
-        {/* Replié (de lui-même dès deux indicateurs posés, ou à la main) : leur nombre, leurs noms au survol. */}
-        {collapsed && <span>{list.length === 1 ? "1 indicateur" : `${list.length} indicateurs`}</span>}
+        {/* Replié (de lui-même dès deux indicateurs posés, ou à la main) : « 3+ » (leur nombre), leurs noms au survol. */}
+        {collapsed && <span>{`${list.length}+`}</span>}
       </button>
     );
     if (collapsed && fold) return fold;

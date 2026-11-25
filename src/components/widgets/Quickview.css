@@ -81,7 +81,6 @@
 }
 
 .lq-root[data-lq-palette="eink"] .lq-quickview--right {
-  border-left: 2px solid var(--lq-color-text);
 }
 
 .lq-root[data-lq-palette="eink"] .lq-quickview--left {

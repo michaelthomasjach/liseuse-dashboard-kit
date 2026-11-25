@@ -860,7 +860,6 @@
    you were pointing at. */
 .lq-chart-workspace__watchlist-row--pressed {
   background-color: var(--lq-color-hover);
-  box-shadow: inset 2px 0 0 var(--lq-color-accent);
 }
 
 /* On touch, `--pressed` only arrives once the one-second hold has elapsed (see

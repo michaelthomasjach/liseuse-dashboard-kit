@@ -165,7 +165,6 @@
 }
 
 .lq-report__callout {
-  border-left: 3px solid var(--lq-color-border);
   padding: var(--lq-space-2);
   background-color: var(--lq-color-surface);
   border-radius: 0 var(--lq-radius-sm) var(--lq-radius-sm) 0;

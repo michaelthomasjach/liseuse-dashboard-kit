@@ -143,7 +143,6 @@
   padding: var(--lq-space-3);
   font-size: var(--lq-text-sm);
   background: color-mix(in srgb, var(--lq-color-accent) 8%, transparent);
-  border-left: 3px solid var(--lq-color-accent);
   border-radius: var(--lq-radius-md);
 }
 

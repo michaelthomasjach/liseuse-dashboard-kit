@@ -210,7 +210,6 @@
   margin: 0 0 0.75em;
   padding: var(--lq-space-2) var(--lq-space-4);
   background-color: color-mix(in srgb, var(--lq-color-fill) 8%, var(--lq-color-panel));
-  border-left: 3px solid var(--lq-color-accent);
   color: var(--lq-color-text);
 }
 

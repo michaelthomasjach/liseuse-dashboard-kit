@@ -153,7 +153,6 @@
 .lq-ai__tool {
   font-size: var(--lq-text-xs);
   color: var(--lq-color-text-muted);
-  border-left: 2px solid var(--lq-color-border-subtle);
   padding-left: var(--lq-space-2);
 }
 
@@ -731,7 +730,7 @@
 .lq-ai-md code { font-family: var(--lq-font-mono, ui-monospace, monospace); font-size: 0.92em; padding: 0 4px; border-radius: var(--lq-radius-sm); background: var(--lq-color-hover); }
 .lq-ai-md pre { padding: var(--lq-space-2); border-radius: var(--lq-radius-sm); background: var(--lq-color-hover); overflow-x: auto; white-space: pre; }
 .lq-ai-md pre code { padding: 0; background: none; }
-.lq-ai-md blockquote { padding-left: var(--lq-space-2); border-left: 2px solid var(--lq-color-accent); color: var(--lq-color-text-muted); }
+.lq-ai-md blockquote { padding-left: var(--lq-space-2); color: var(--lq-color-text-muted); }
 .lq-ai-md hr { border: 0; border-top: 1px solid var(--lq-color-border-subtle); }
 .lq-ai-md__table { overflow-x: auto; }
 .lq-ai-md table { border-collapse: collapse; font-size: var(--lq-text-xs); width: 100%; }

@@ -253,7 +253,6 @@
 /* Le message ouvert : un filet d'accent sur le bord gauche, et un fond. */
 .lq-mail__item--open {
   background-color: var(--lq-mail-open-bg, var(--lq-color-hover));
-  box-shadow: inset 3px 0 0 var(--lq-color-accent);
 }
 
 .lq-mail__check {
@@ -395,7 +394,6 @@
 
 .lq-root[data-lq-palette="eink"] .lq-mail__item--open {
   background-color: transparent;
-  box-shadow: inset 4px 0 0 var(--lq-color-text);
 }
 
 .lq-root[data-lq-palette="eink"] .lq-mail__dot {

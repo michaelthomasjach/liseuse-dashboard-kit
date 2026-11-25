@@ -39,7 +39,6 @@
 .lq-testimonial--callout {
   padding: var(--lq-space-4) var(--lq-space-5);
   background-color: color-mix(in srgb, var(--lq-color-fill) 8%, var(--lq-color-panel));
-  border-left: 3px solid var(--lq-color-accent);
   border-radius: var(--lq-radius-md);
 }
 

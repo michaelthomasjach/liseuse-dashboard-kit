@@ -113,7 +113,6 @@
   padding: var(--lq-space-3) var(--lq-space-4) var(--lq-space-3) var(--lq-space-3);
   background-color: var(--lq-color-panel);
   border: 1px solid var(--lq-color-border);
-  border-left: 3px solid var(--lq-color-text-muted);
   border-radius: var(--lq-radius-md);
   box-shadow: var(--lq-shadow-modal);
   overflow: hidden;

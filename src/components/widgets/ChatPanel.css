@@ -77,7 +77,6 @@
   background: transparent;
   border: 0;
   border-bottom: 1px solid var(--lq-color-border-subtle);
-  border-left: 3px solid transparent;
 }
 
 .lq-chat-panel__contact:hover {

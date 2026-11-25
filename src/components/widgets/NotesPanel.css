@@ -72,7 +72,6 @@
 .lq-notes-panel__item {
   position: relative;
   border-bottom: 1px solid var(--lq-color-border-subtle);
-  border-left: 3px solid transparent;
 }
 
 .lq-notes-panel__item:hover {

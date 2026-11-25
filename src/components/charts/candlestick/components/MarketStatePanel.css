@@ -261,7 +261,6 @@
 .lq-market-state__part-formula {
   margin: 1px 0;
   padding: 2px 5px;
-  border-left: 2px solid var(--lq-color-border-subtle);
   font-size: 0.62rem;
   line-height: 1.5;
   color: var(--lq-color-text-muted);
@@ -271,7 +270,6 @@
 .lq-market-state__formula-line {
   margin: 0 0 6px;
   padding: 3px 6px;
-  border-left: 2px solid var(--lq-color-border-subtle);
   font-size: 0.62rem;
   line-height: 1.5;
   color: var(--lq-color-text-muted);

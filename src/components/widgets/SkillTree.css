@@ -264,7 +264,6 @@
 .lq-skilltree__inline {
   padding: var(--lq-space-2) var(--lq-space-3);
   border: 1px solid var(--lq-color-border);
-  border-left: 3px solid var(--lq-skill-color);
   border-radius: var(--lq-radius-sm);
   background: var(--lq-color-panel);
   font-size: var(--lq-text-xs);

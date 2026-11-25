@@ -16,7 +16,6 @@
   color: var(--lq-color-text);
   background: var(--lq-color-panel);
   border: 1px solid var(--lq-color-border-subtle);
-  border-left: 4px solid var(--lq-alert-tone);
   border-radius: var(--lq-radius-md);
 }
 

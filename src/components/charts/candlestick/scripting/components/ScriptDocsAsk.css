@@ -91,7 +91,6 @@
   gap: var(--lq-space-2);
   padding: var(--lq-space-3);
   border: 1px solid var(--lq-color-border-subtle);
-  border-left-width: 3px;
   border-radius: var(--lq-radius-sm);
   background-color: var(--lq-color-bg);
 }

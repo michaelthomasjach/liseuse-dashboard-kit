@@ -10,7 +10,6 @@
   gap: 6px;
   padding: 3px 8px;
   border: 1px solid color-mix(in srgb, var(--lq-fps-color) 55%, var(--lq-color-border));
-  border-left: 3px solid var(--lq-fps-color);
   border-radius: var(--lq-radius-sm, 4px);
   background: color-mix(in srgb, var(--lq-color-panel) 82%, transparent);
   backdrop-filter: blur(4px);
@@ -78,8 +77,6 @@
   backdrop-filter: none;
 }
 .lq-root[data-lq-palette="eink"] .lq-fps[data-level="warn"] {
-  border-left-width: 5px;
 }
 .lq-root[data-lq-palette="eink"] .lq-fps[data-level="critical"] {
-  border-left-width: 8px;
 }

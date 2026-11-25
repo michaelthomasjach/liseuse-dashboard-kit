@@ -325,6 +325,9 @@ export function useDrawingInteractions({
   // d3-zoom) et ce que le premier doigt avait commencé (déplacer un dessin, une poignée, la mesure, l'axe des prix,
   // une sélection) est annulé. `pinchingRef` reste vrai jusqu'au prochain geste.
   const touchTargetsRef = useRef<Map<number, Element>>(new Map());
+  /** Appui du doigt pendant qu'un outil de dessin est armé : le point est posé au relâchement (voir
+   *  handleOverlayPointerUp), sans attendre le `click` que les navigateurs mobiles n'envoient pas toujours. */
+  const touchPlaceRef = useRef<{ startClientX: number; startClientY: number } | null>(null);
   const pinchingRef = useRef(false);
   // Le dessin tel qu'il était à l'appui sur une de ses poignées : rendu tel quel si un pincement prend le geste.
   const endpointOrigRef = useRef<TrendLineDrawing | null>(null);
@@ -1085,8 +1088,10 @@ export function useDrawingInteractions({
       setBrushPreview(brushPointsRef.current);
       return;
     }
+    touchPlaceRef.current = null;
     if (activeTool) {
       drawPressRef.current = null;
+      if (e.pointerType === "touch") touchPlaceRef.current = { startClientX: e.clientX, startClientY: e.clientY };
       // Premier point d'un outil à deux points ou plus : l'appui peut devenir un glisser (voir drawPressRef).
       // d3-zoom est coupé tant qu'un outil est armé : ni défilement ni zoom pendant le geste.
       if (!pendingPoint && !NO_DRAG_PLACEMENT_TOOLS.has(activeTool) && (e.pointerType === "touch" || e.button === 0)) {
@@ -1266,6 +1271,24 @@ export function useDrawingInteractions({
         setPreviewPoint(null);
         setActiveTool(null);
       }
+      return;
+    }
+    // Doigt relâché sur place, outil armé : le point est posé tout de suite (premier, intermédiaire ou dernier).
+    const touchPlace = touchPlaceRef.current;
+    touchPlaceRef.current = null;
+    if (
+      touchPlace &&
+      e.pointerType === "touch" &&
+      activeTool &&
+      !pinchingRef.current &&
+      !drawPressRef.current?.dragging &&
+      Math.hypot(e.clientX - touchPlace.startClientX, e.clientY - touchPlace.startClientY) < CLICK_DRAG_THRESHOLD * 2
+    ) {
+      drawPressRef.current = null;
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+      // Le `click` éventuel qui suit ne doit pas poser un second point au même endroit.
+      suppressClickRef.current = true;
+      placeAt(e);
       return;
     }
     const press = drawPressRef.current;

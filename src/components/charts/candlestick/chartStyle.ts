@@ -134,7 +134,7 @@ export interface ChartStyleSettings {
   lineGradient?: boolean;
   lineTopColor?: string;
   lineBottomColor?: string;
-  /** Remplissage sous la ligne de clôture. Défaut vrai (la couleur de la ligne à 8 %). */
+  /** Remplissage sous la ligne de clôture. Défaut faux : une simple ligne ; vrai : la couleur de la ligne à 8 %. */
   lineFill?: boolean;
   /** Couleur du remplissage uni, opacité comprise (`#rrggbbaa`). Absent : la couleur de la ligne à 8 %. */
   lineFillColor?: string;

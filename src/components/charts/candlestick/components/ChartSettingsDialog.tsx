@@ -16,6 +16,7 @@ import type { ChartButtonsVisibility, ChartColorMode, ChartDateFormat, ChartLine
 import { CANVAS_STYLE_KEYS, DEFAULT_RESET_ZOOM_BARS, MODE_COLOR_KEYS, chartStyleMeta, templateStyle } from "../chartStyle";
 import { CandleColorRulesEditor } from "./CandleColorRulesEditor";
 import { hasCandleColorOverrides, resetCandleColors } from "../candleColorOverrides";
+import { IllustrationColorsProvider, SettingIllustration, type SettingIllustrationId } from "./settingsIllustrations";
 import "./ChartSettingsDialog.css";
 
 /** Les pages de la fenêtre, dans l'ordre de la navigation. */
@@ -156,9 +157,10 @@ function useNarrowScreen(): boolean {
 }
 
 /** Une ligne « libellé à gauche / contrôle(s) à droite ». */
-function Row({ label, hint, children, disabled }: { label: ReactNode; hint?: ReactNode; children: ReactNode; disabled?: boolean }) {
+function Row({ label, hint, children, disabled, illus }: { label: ReactNode; hint?: ReactNode; children: ReactNode; disabled?: boolean; illus?: SettingIllustrationId }) {
   return (
     <div className={["lq-chart-settings__row", disabled && "lq-chart-settings__row--disabled"].filter(Boolean).join(" ")}>
+      {illus && <SettingIllustration id={illus} />}
       <div className="lq-chart-settings__label">
         <span>{label}</span>
         {hint && <span className="lq-chart-settings__hint">{hint}</span>}
@@ -388,9 +390,10 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
   function StatusLinePage(p: ChartSettingsDialogProps) {
     const off = p.symbolInfoHidden;
     const toggle = (key: keyof ChartStyleSettings, label: string, def: boolean, disabled?: boolean) => {
+      const illus = key as SettingIllustrationId;
       const checked = (chartStyle[key] as boolean | undefined) ?? def;
       return (
-        <Row label={label} disabled={disabled}>
+        <Row illus={illus} label={label} disabled={disabled}>
           <Toggle checked={checked} onChange={() => set({ [key]: !checked === def ? undefined : !checked })} ariaLabel={label} disabled={disabled} />
         </Row>
       );
@@ -398,7 +401,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
     return (
       <>
         <Section title="Symbole">
-          <Row label="Ligne d'état" hint="En haut à gauche du graphique">
+          <Row illus="statusLine" label="Ligne d'état" hint="En haut à gauche du graphique">
             <Toggle checked={!off} onChange={() => p.setSymbolInfoHidden(!off)} ariaLabel="Afficher la ligne d'état" />
           </Row>
           {toggle("legendSymbol", "Symbole", true, off)}
@@ -427,7 +430,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
       <>
         <Section title="Échelle des prix">
           {p.priceScaleMode && p.setPriceScaleMode && (
-            <Row label="Mode">
+            <Row illus="priceScaleMode" label="Mode">
               <div className="lq-chart-settings__segmented" role="radiogroup" aria-label="Échelle de l'axe des prix">
                 {PRICE_SCALE_OPTIONS.map((o) => (
                   <button
@@ -445,7 +448,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
               </div>
             </Row>
           )}
-          <Row label="Ajustement automatique" hint="L'axe suit les bougies visibles au zoom">
+          <Row illus="autoScale" label="Ajustement automatique" hint="L'axe suit les bougies visibles au zoom">
             <Toggle
               checked={p.yAutoScalingState}
               onChange={() => {
@@ -455,13 +458,13 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
               ariaLabel="Ajustement automatique de l'axe des prix"
             />
           </Row>
-          <Row label="Axe des prix">
+          <Row illus="priceAxis" label="Axe des prix">
             <Toggle checked={priceShown} onChange={() => flip("priceAxisVisible", true)} ariaLabel="Afficher l'axe des prix" />
           </Row>
-          <Row label="Axes des panneaux" hint="Volume et indicateurs">
+          <Row illus="paneAxes" label="Axes des panneaux" hint="Volume et indicateurs">
             <Toggle checked={bool("paneAxesVisible", true)} onChange={() => flip("paneAxesVisible", true)} ariaLabel="Afficher les axes des panneaux" />
           </Row>
-          <Row label="Placement de l'échelle">
+          <Row illus="scalePlacement" label="Placement de l'échelle">
             <Select<"right" | "left">
               size="small"
               className="lq-chart-settings__select"
@@ -476,10 +479,10 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
           </Row>
         </Section>
         <Section title="Étiquettes et lignes">
-          <Row label="Dernier prix" hint="Pastille sur l'axe" disabled={!priceShown}>
+          <Row illus="lastPriceLabel" label="Dernier prix" hint="Pastille sur l'axe" disabled={!priceShown}>
             <Toggle checked={bool("lastPriceLabel", true)} onChange={() => flip("lastPriceLabel", true)} ariaLabel="Pastille du dernier prix" disabled={!priceShown} />
           </Row>
-          <Row label="Ligne du dernier prix">
+          <Row illus="lastPriceLine" label="Ligne du dernier prix">
             {lineStyleSelect(chartStyle.lastPriceLineStyle ?? "dashed", (v) => set({ lastPriceLineStyle: v === "dashed" ? undefined : v }), "Style de la ligne du dernier prix", !lastLine)}
             {/* Hausse (dernier prix au-dessus de la clôture précédente) et baisse : par défaut la couleur de la bougie ;
                 l'ancienne couleur unique vaut pour les deux sens. La pastille du dernier prix prend la même couleur. */}
@@ -497,19 +500,19 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
               ariaLabel="Ligne du dernier prix"
             />
           </Row>
-          <Row label="Plus haut et plus bas visibles" disabled={!priceShown}>
+          <Row illus="highLow" label="Plus haut et plus bas visibles" disabled={!priceShown}>
             <Toggle checked={bool("highLowLabels", false)} onChange={() => flip("highLowLabels", false)} ariaLabel="Plus haut et plus bas visibles" disabled={!priceShown} />
           </Row>
-          <Row label="Valeurs des indicateurs" hint="Dernière valeur sur l'axe">
+          <Row illus="indicatorValues" label="Valeurs des indicateurs" hint="Dernière valeur sur l'axe">
             <Toggle checked={bool("indicatorAxisLabels", false)} onChange={() => flip("indicatorAxisLabels", false)} ariaLabel="Valeurs des indicateurs sur l'axe" />
           </Row>
-          <Row label="Compte à rebours jusqu'à la clôture" hint={p.livePrice ? undefined : "Avec les prix en direct"} disabled={!priceShown}>
+          <Row illus="countdown" label="Compte à rebours jusqu'à la clôture" hint={p.livePrice ? undefined : "Avec les prix en direct"} disabled={!priceShown}>
             <Toggle checked={bool("countdown", true)} onChange={() => flip("countdown", true)} ariaLabel="Compte à rebours de la bougie" disabled={!priceShown} />
           </Row>
         </Section>
         {advancedAppearance && (
           <Section title="Étiquettes des axes" id="etiquettes">
-            <Row label="Valeurs des séries" hint="Dernier cours et dernière valeur des indicateurs, sur l'axe">
+            <Row illus="seriesLabels" label="Valeurs des séries" hint="Dernier cours et dernière valeur des indicateurs, sur l'axe">
               <Select<"series" | "custom">
                 size="small"
                 className="lq-chart-settings__select lq-chart-settings__select--wide"
@@ -542,11 +545,11 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                 title="Texte"
               />
             </Row>
-            <Row label="Réticule sur l'axe des prix" hint="Prix ou valeur survolé, fond et texte">
+            <Row illus="crosshairPriceLabel" label="Réticule sur l'axe des prix" hint="Prix ou valeur survolé, fond et texte">
               <ColorPicker value={chartStyle.crosshairPriceLabelBg ?? themeColors.accent} onChange={(c) => set({ crosshairPriceLabelBg: c })} aria-label="Couleur de fond de l'étiquette du réticule (prix)" title="Fond" />
               <ColorPicker value={chartStyle.crosshairPriceLabelText ?? themeColors.accentContrast} onChange={(c) => set({ crosshairPriceLabelText: c })} aria-label="Couleur du texte de l'étiquette du réticule (prix)" title="Texte" />
             </Row>
-            <Row label="Réticule sur l'axe du temps" hint="Date survolée, fond et texte">
+            <Row illus="crosshairTimeLabel" label="Réticule sur l'axe du temps" hint="Date survolée, fond et texte">
               <ColorPicker value={chartStyle.crosshairTimeLabelBg ?? themeColors.accent} onChange={(c) => set({ crosshairTimeLabelBg: c })} aria-label="Couleur de fond de l'étiquette de date du réticule" title="Fond" />
               <ColorPicker value={chartStyle.crosshairTimeLabelText ?? themeColors.accentContrast} onChange={(c) => set({ crosshairTimeLabelText: c })} aria-label="Couleur du texte de l'étiquette de date du réticule" title="Texte" />
             </Row>
@@ -560,13 +563,13 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
           </Section>
         )}
         <Section title="Échelle de temps">
-          <Row label="Axe du temps">
+          <Row illus="timeAxis" label="Axe du temps">
             <Toggle checked={bool("timeAxisVisible", true)} onChange={() => flip("timeAxisVisible", true)} ariaLabel="Afficher l'axe du temps" />
           </Row>
-          <Row label="Jour de la semaine sur les étiquettes">
+          <Row illus="weekday" label="Jour de la semaine sur les étiquettes">
             <Toggle checked={bool("weekdayOnLabels", false)} onChange={() => flip("weekdayOnLabels", false)} ariaLabel="Jour de la semaine sur les étiquettes" />
           </Row>
-          <Row label="Format de la date">
+          <Row illus="dateFormat" label="Format de la date">
             <Select<ChartDateFormat>
               size="small"
               className="lq-chart-settings__select lq-chart-settings__select--wide"
@@ -576,7 +579,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
               ariaLabel="Format de la date"
             />
           </Row>
-          <Row label="Format de l'heure" hint="Bougies de moins d'un jour">
+          <Row illus="timeFormat" label="Format de l'heure" hint="Bougies de moins d'un jour">
             <Select<ChartTimeFormat>
               size="small"
               className="lq-chart-settings__select lq-chart-settings__select--wide"
@@ -588,7 +591,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
           </Row>
         </Section>
         <Section title="Mise en page">
-          <Row label="Mise en page tactile" hint={p.layoutOverride === null ? "Choisie selon la largeur" : undefined}>
+          <Row illus="touchLayout" label="Mise en page tactile" hint={p.layoutOverride === null ? "Choisie selon la largeur" : undefined}>
             {p.layoutOverride !== null && (
               <button type="button" className="lq-chart-settings__link" onClick={() => p.setLayoutOverride(null)}>
                 Automatique
@@ -611,7 +614,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
     const host = meta?.host ?? "light";
     const raw = meta?.raw ?? chartStyle;
     const numberField = (key: "marginTop" | "marginBottom" | "marginRightBars" | "resetZoomBars", label: string, unit: string, def: number | undefined, max: number, hint?: string) => (
-      <Row label={label} hint={hint}>
+      <Row illus={key === "marginRightBars" ? "marginRight" : key === "resetZoomBars" ? "resetZoom" : key} label={label} hint={hint}>
         <span className="lq-chart-settings__number">
           <input
             type="number"
@@ -659,10 +662,10 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
         ? [{ value: String(chartStyle.scaleTextSize), label: `${chartStyle.scaleTextSize} px` }, ...TEXT_SIZE_OPTIONS]
         : TEXT_SIZE_OPTIONS;
     return (
-      <>
+      <IllustrationColorsProvider value={{ backgroundGradient: gradient }}>
         {advancedAppearance && (
           <Section title="Mode">
-            <Row label="Mode du graphique" hint={chartStyle.colorMode === undefined ? `Le site est en mode ${host === "dark" ? "nuit" : "jour"}` : undefined}>
+            <Row illus="colorMode" label="Mode du graphique" hint={chartStyle.colorMode === undefined ? `Le site est en mode ${host === "dark" ? "nuit" : "jour"}` : undefined}>
               <div className="lq-chart-settings__segmented" role="radiogroup" aria-label="Mode jour ou nuit du graphique">
                 {COLOR_MODE_OPTIONS.map((o) => {
                   const active = (chartStyle.colorMode ?? "auto") === o.value;
@@ -681,7 +684,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                 })}
               </div>
             </Row>
-            <Row label={`Couleurs du mode ${mode === "dark" ? "nuit" : "jour"}`} hint="Enregistrées à part pour le jour et pour la nuit">
+            <Row illus="modeColors" label={`Couleurs du mode ${mode === "dark" ? "nuit" : "jour"}`} hint="Enregistrées à part pour le jour et pour la nuit">
               <button type="button" className="lq-chart-settings__link" onClick={resetModeColors} disabled={!modeTouched}>
                 Revenir aux couleurs par défaut
               </button>
@@ -690,7 +693,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
         )}
         <Section title="Styles de base du graphique">
           {/* Fond translucide : ce qui est derrière le graphique (halo animé de la page…) transparaît. */}
-          <Row label="Opacité du fond">
+          <Row illus="backgroundOpacity" label="Opacité du fond">
             <span className="lq-chart-settings__slider">
               <Slider
                 min={0}
@@ -704,12 +707,12 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
             <span className="lq-chart-settings__slider-value">{chartStyle.backgroundOpacity ?? 100} %</span>
           </Row>
           {/* La page qui pose le graphique dans un cadre (marge, coins arrondis) l'étend jusqu'aux bords. */}
-          <Row label="Bord à bord" hint="Sans espace ni coins arrondis autour du graphique en plein écran">
+          <Row illus="edgeToEdge" label="Bord à bord" hint="Sans espace ni coins arrondis autour du graphique en plein écran">
             <Checkbox checked={chartStyle.edgeToEdge === true} onChange={(v) => set({ edgeToEdge: v })} ariaLabel="Bord à bord" />
           </Row>
           {advancedAppearance && (
             <>
-              <Row label="Fond">
+              <Row illus="background" label="Fond">
                 <Select<"solid" | "gradient">
                   size="small"
                   className="lq-chart-settings__select"
@@ -728,17 +731,17 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                   <ColorPicker value={chartStyle.backgroundColor2 ?? tc.bg} onChange={(c) => set({ backgroundColor2: c, backgroundColor: chartStyle.backgroundColor ?? tc.bg })} aria-label="Couleur du bas du dégradé" />
                 )}
               </Row>
-              <Row label="Lignes de grille verticales">
+              <Row illus="vertGrid" label="Lignes de grille verticales">
                 {lineStyleSelect(chartStyle.vertGridStyle ?? "dashed", (v) => set({ vertGridStyle: v }), "Style de la grille verticale", !vert)}
                 <ColorPicker value={chartStyle.vertGridColor ?? tc.grid} onChange={(c) => set({ vertGridColor: c })} disabled={!vert} aria-label="Couleur de la grille verticale" />
                 <Checkbox checked={vert} onChange={() => set({ vertGridVisible: vert ? undefined : true })} ariaLabel="Lignes de grille verticales" />
               </Row>
-              <Row label="Lignes de grille horizontales">
+              <Row illus="horzGrid" label="Lignes de grille horizontales">
                 {lineStyleSelect(chartStyle.horzGridStyle ?? "dashed", (v) => set({ horzGridStyle: v }), "Style de la grille horizontale", !horz)}
                 <ColorPicker value={chartStyle.horzGridColor ?? tc.grid} onChange={(c) => set({ horzGridColor: c })} disabled={!horz} aria-label="Couleur de la grille horizontale" />
                 <Checkbox checked={horz} onChange={() => set({ horzGridVisible: horz ? false : undefined })} ariaLabel="Lignes de grille horizontales" />
               </Row>
-              <Row label="Séparateurs de panneaux" hint="Couleur et épaisseur">
+              <Row illus="paneSeparators" label="Séparateurs de panneaux" hint="Couleur et épaisseur">
                 <ColorPicker
                   value={chartStyle.paneSeparatorColor ?? tc.grid}
                   onChange={(c) => set({ paneSeparatorColor: c })}
@@ -748,7 +751,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                   aria-label="Couleur et épaisseur des séparateurs de panneaux"
                 />
               </Row>
-              <Row label="Réticule" hint="Style, couleur et épaisseur">
+              <Row illus="crosshair" label="Réticule" hint="Style, couleur et épaisseur">
                 {lineStyleSelect(chartStyle.crosshairStyle ?? "dashed", (v) => set({ crosshairStyle: v }), "Style du réticule")}
                 <ColorPicker
                   value={chartStyle.crosshairColor ?? tc.muted}
@@ -762,7 +765,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
           )}
           {p.watermarkAvailable && (
             <>
-              <Row label="Filigrane" hint="Le nom du symbole en fond du graphique">
+              <Row illus="watermark" label="Filigrane" hint="Le nom du symbole en fond du graphique">
                 <Select<"hidden" | "symbol" | "replay">
                   size="small"
                   className="lq-chart-settings__select lq-chart-settings__select--wide"
@@ -787,7 +790,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                 />
               </Row>
               {watermarkMode !== "hidden" && (
-                <Row label="Taille du filigrane">
+                <Row illus="watermarkSize" label="Taille du filigrane">
                   <span className="lq-chart-settings__range">
                     <input type="range" min={30} max={150} step={5} value={Math.round(p.watermark.size ?? 100)} onChange={(e) => p.setWatermark({ ...p.watermark, size: Number(e.target.value) })} aria-label="Taille du filigrane" />
                     <span>{Math.round(p.watermark.size ?? 100)} %</span>
@@ -800,7 +803,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
         {advancedAppearance && (
           <>
             <Section title="Échelles">
-              <Row label="Texte">
+              <Row illus="scaleText" label="Texte">
                 <Select<string>
                   size="small"
                   className="lq-chart-settings__select"
@@ -811,15 +814,15 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                 />
                 <ColorPicker value={chartStyle.scaleTextColor ?? tc.muted} onChange={(c) => set({ scaleTextColor: c })} aria-label="Couleur du texte des échelles" />
               </Row>
-              <Row label="Lignes" hint="Axes et graduations">
+              <Row illus="scaleLines" label="Lignes" hint="Axes et graduations">
                 <ColorPicker value={chartStyle.scaleLineColor ?? tc.grid} onChange={(c) => set({ scaleLineColor: c })} aria-label="Couleur des lignes des échelles" />
               </Row>
             </Section>
             <Section title="Boutons">
-              <Row label="Navigation" hint="Zoom et défilement en bas du graphique">
+              <Row illus="navigationButtons" label="Navigation" hint="Zoom et défilement en bas du graphique">
                 {buttonsSelect("navigationButtons", "hidden", "Boutons de navigation")}
               </Row>
-              <Row label="Panneau" hint="Réglages, masquer, fermer des panneaux et indicateurs">
+              <Row illus="paneButtons" label="Panneau" hint="Réglages, masquer, fermer des panneaux et indicateurs">
                 {buttonsSelect("paneButtons", "hover", "Boutons des panneaux")}
               </Row>
             </Section>
@@ -834,10 +837,10 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
           </>
         )}
         <Section title="Zones">
-          <Row label="Zone rayée avant la première bougie">
+          <Row illus="pastZone" label="Zone rayée avant la première bougie">
             <Toggle checked={p.pastZoneVisible} onChange={() => p.setPastZoneVisible(!p.pastZoneVisible)} ariaLabel="Zone rayée avant la première bougie" />
           </Row>
-          <Row label="Zone rayée après la dernière bougie">
+          <Row illus="futureZone" label="Zone rayée après la dernière bougie">
             <Toggle checked={p.futureZoneVisible} onChange={() => p.setFutureZoneVisible(!p.futureZoneVisible)} ariaLabel="Zone rayée après la dernière bougie" />
           </Row>
         </Section>
@@ -854,7 +857,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
             </button>
           </div>
         )}
-      </>
+      </IllustrationColorsProvider>
     );
   }
 
@@ -862,7 +865,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
     return (
       <Section title="Événements affichés">
         {p.eventKinds.map((kind) => (
-          <Row key={kind} label={capitalize(kind)}>
+          <Row key={kind} illus="events" label={capitalize(kind)}>
             <Toggle
               checked={!p.hiddenEventKinds.has(kind)}
               onChange={() =>
@@ -884,7 +887,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
   function IntegrationPage(p: ChartSettingsDialogProps) {
     return (
       <Section title="Intégration">
-        <Row label="Props du graphique" hint="Ce que l'application peut passer à ce graphique, avec les types et les valeurs par défaut">
+        <Row illus="integration" label="Props du graphique" hint="Ce que l'application peut passer à ce graphique, avec les types et les valeurs par défaut">
           <button type="button" className="lq-chart__reset-button lq-chart__props-button" onClick={p.onOpenProps}>
             <CodeIcon size={13} /> Voir
           </button>
@@ -933,7 +936,7 @@ export function ChartSymbolSettings(p: ChartSymbolSettingsProps) {
   const showParams = p.part !== "style";
   const showStyle = p.part !== "params";
   const type = (
-    <Row label="Type de bougies">
+    <Row illus="chartType" label="Type de bougies">
       <Select<ChartDisplayMode>
         size="small"
         className="lq-chart-settings__select lq-chart-settings__select--wide"
@@ -949,6 +952,7 @@ export function ChartSymbolSettings(p: ChartSymbolSettingsProps) {
   );
   const pulse = (
     <Row
+      illus="pulse"
       label="Onde du dernier cours"
       hint={p.chartDisplayMode === "line" ? "Une onde à chaque nouveau cours, en direct ou en replay" : "Seulement en mode Ligne"}
       disabled={p.chartDisplayMode !== "line"}
@@ -967,7 +971,7 @@ export function ChartSymbolSettings(p: ChartSymbolSettingsProps) {
           {type}
           {pulse}
           {p.onOpenCandleColors && (
-            <Row label="Couleurs" hint="Celles de chaque type de graphique">
+            <Row illus="candleColors" label="Couleurs" hint="Celles de chaque type de graphique">
               <button type="button" className="lq-chart-settings__link" onClick={p.onOpenCandleColors}>
                 Ouvrir l'onglet Bougies
               </button>
@@ -1050,7 +1054,7 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
   const down = p.downColorOverride ?? theme.down;
   const eink = theme.isEink && current !== "line";
   const numberRow = (key: "renkoAtrPeriod" | "lineBreakLines", label: string, hint: string, def: number, min: number, max: number) => (
-    <Row label={label} hint={hint}>
+    <Row illus={key === "renkoAtrPeriod" ? "renkoAtr" : "lineBreakLines"} label={label} hint={hint}>
       <span className="lq-chart-settings__number">
         <input
           type="number"
@@ -1074,10 +1078,10 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
     const body = (side: "Up" | "Down") => (chartStyle[k(`${side}Color`)] as string | undefined) ?? (side === "Up" ? up : down);
     return (
       <>
-        <Row label="Corps" hint="Hausse · baisse">
+        <Row illus={prefix === "renko" ? "renkoBody" : "lineBreakBody"} label="Corps" hint="Hausse · baisse">
           <UpDownPickers label={`Corps des ${noun}`} up={body("Up")} down={body("Down")} onUp={(c) => set({ [k("UpColor")]: c })} onDown={(c) => set({ [k("DownColor")]: c })} disabled={eink} />
         </Row>
-        <Row label="Bordures" hint="Hausse · baisse">
+        <Row illus={prefix === "renko" ? "renkoBorder" : "lineBreakBorder"} label="Bordures" hint="Hausse · baisse">
           <UpDownPickers
             label={`Bordures des ${noun}`}
             up={(chartStyle[k("BorderUpColor")] as string | undefined) ?? body("Up")}
@@ -1091,7 +1095,7 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
     );
   };
   const lineColor = chartStyle.lineColor ?? accent;
-  const fill = chartStyle.lineFill ?? true;
+  const fill = chartStyle.lineFill ?? false;
   const gradient = chartStyle.lineFillGradient ?? false;
   const lineGradient = chartStyle.lineGradient ?? false;
   const panel = (() => {
@@ -1099,13 +1103,13 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
       case "candle":
         return (
           <>
-            <Row label="Corps" hint="Hausse · baisse">
+            <Row illus="candleBody" label="Corps" hint="Hausse · baisse">
               <UpDownPickers label="Corps des bougies" up={up} down={down} onUp={p.setUpColorOverride} onDown={p.setDownColorOverride} disabled={eink} />
             </Row>
-            <Row label="Bordures" hint="Hausse · baisse">
+            <Row illus="candleBorder" label="Bordures" hint="Hausse · baisse">
               <UpDownPickers label="Bordures des bougies" up={chartStyle.borderUpColor ?? up} down={chartStyle.borderDownColor ?? down} onUp={(c) => set({ borderUpColor: c })} onDown={(c) => set({ borderDownColor: c })} disabled={eink} />
             </Row>
-            <Row label="Mèches" hint="Hausse · baisse">
+            <Row illus="candleWick" label="Mèches" hint="Hausse · baisse">
               <UpDownPickers label="Mèches des bougies" up={chartStyle.wickUpColor ?? up} down={chartStyle.wickDownColor ?? down} onUp={(c) => set({ wickUpColor: c })} onDown={(c) => set({ wickDownColor: c })} disabled={eink} />
             </Row>
           </>
@@ -1115,10 +1119,10 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
         const haDown = chartStyle.haDownColor ?? down;
         return (
           <>
-            <Row label="Corps" hint="Hausse · baisse">
+            <Row illus="haBody" label="Corps" hint="Hausse · baisse">
               <UpDownPickers label="Corps Heikin Ashi" up={haUp} down={haDown} onUp={(c) => set({ haUpColor: c })} onDown={(c) => set({ haDownColor: c })} disabled={eink} />
             </Row>
-            <Row label="Bordures" hint="Hausse · baisse">
+            <Row illus="candleBorder" label="Bordures" hint="Hausse · baisse">
               <UpDownPickers
                 label="Bordures Heikin Ashi"
                 up={chartStyle.haBorderUpColor ?? chartStyle.borderUpColor ?? haUp}
@@ -1128,7 +1132,7 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
                 disabled={eink}
               />
             </Row>
-            <Row label="Mèches" hint="Hausse · baisse">
+            <Row illus="candleWick" label="Mèches" hint="Hausse · baisse">
               <UpDownPickers
                 label="Mèches Heikin Ashi"
                 up={chartStyle.haWickUpColor ?? chartStyle.wickUpColor ?? haUp}
@@ -1144,10 +1148,10 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
       case "bar":
         return (
           <>
-            <Row label="Barres" hint="Hausse · baisse">
+            <Row illus="bars" label="Barres" hint="Hausse · baisse">
               <UpDownPickers label="Barres" up={chartStyle.barUpColor ?? up} down={chartStyle.barDownColor ?? down} onUp={(c) => set({ barUpColor: c })} onDown={(c) => set({ barDownColor: c })} disabled={eink} />
             </Row>
-            <Row label="Épaisseur">
+            <Row illus="barWidth" label="Épaisseur">
               <Select<string>
                 size="small"
                 className="lq-chart-settings__select"
@@ -1162,7 +1166,7 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
       case "line":
         return (
           <>
-            <Row label="Ligne" hint="Style, couleur et épaisseur">
+            <Row illus="lineStroke" label="Ligne" hint="Style, couleur et épaisseur">
               {lineStyleSelect(chartStyle.lineStyle ?? "solid", (v) => set({ lineStyle: v === "solid" ? undefined : v }), "Style de la ligne de clôture")}
               <ColorPicker
                 value={lineColor}
@@ -1173,7 +1177,7 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
                 aria-label="Couleur de la ligne de clôture"
               />
             </Row>
-            <Row label="Couleur de la ligne" hint={lineGradient ? "Haut · bas" : undefined}>
+            <Row illus="lineColorMode" label="Couleur de la ligne" hint={lineGradient ? "Haut · bas" : undefined}>
               <Select<"solid" | "gradient">
                 size="small"
                 className="lq-chart-settings__select"
@@ -1192,10 +1196,10 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
                 </>
               ) : null}
             </Row>
-            <Row label="Remplissage sous la courbe" hint={fill ? undefined : "Une simple ligne, sans aire"}>
-              <Toggle checked={fill} onChange={() => set({ lineFill: fill ? false : undefined })} ariaLabel="Remplissage sous la ligne de clôture" />
+            <Row illus="lineFill" label="Remplissage sous la courbe" hint={fill ? undefined : "Une simple ligne, sans aire"}>
+              <Toggle checked={fill} onChange={() => set({ lineFill: fill ? undefined : true })} ariaLabel="Remplissage sous la ligne de clôture" />
             </Row>
-            <Row label="Type de remplissage" disabled={!fill}>
+            <Row illus="lineFillType" label="Type de remplissage sous la courbe des prix" disabled={!fill}>
               <Select<"solid" | "gradient">
                 size="small"
                 className="lq-chart-settings__select"
@@ -1205,7 +1209,7 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
                 ]}
                 value={gradient ? "gradient" : "solid"}
                 onChange={(v) => set({ lineFillGradient: v === "gradient" ? true : undefined })}
-                ariaLabel="Type de remplissage"
+                ariaLabel="Type de remplissage sous la courbe des prix"
                 disabled={!fill}
               />
               {gradient ? (
@@ -1242,6 +1246,7 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
     set(Object.fromEntries(CHART_TYPE_KEYS[current].map((k) => [k, undefined])) as Partial<ChartStyleSettings>);
   };
   return (
+    <IllustrationColorsProvider value={{ up: eink ? undefined : up, down: eink ? undefined : down, line: lineColor, lineFillGradient: gradient }}>
     <div ref={rootRef} className="lq-chart-settings__chart-types">
       {!p.single && (
         <div className="lq-chart-settings__subtabs" role="tablist" aria-label="Types de graphique">
@@ -1275,6 +1280,7 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
         )}
       </Section>
     </div>
+    </IllustrationColorsProvider>
   );
 }
 

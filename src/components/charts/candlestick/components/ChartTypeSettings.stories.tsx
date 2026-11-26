@@ -6,6 +6,8 @@ import type { ChartStyleSettings } from "../chartStyle";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
 import { generateCandles } from "../../../../test-data/financeSampleData";
 import "../../charts-shared.css";
+import "./ChartSettingsDialog.css";
+import { SettingIllustration, ILLUSTRATION_IDS } from "./settingsIllustrations";
 
 const meta: Meta = {
   title: "Charts/Paramètres système/Bougies",
@@ -22,7 +24,7 @@ export const CouleursParType: Story = {
   render: () => {
     const data = useMemo(() => generateCandles(220), []);
     const [mode, setMode] = useState<ChartDisplayMode>("line");
-    const [style, setStyle] = useState<ChartStyleSettings>({ lineColor: "#673ab7", lineWidth: 2, lineFill: false });
+    const [style, setStyle] = useState<ChartStyleSettings>({ lineColor: "#673ab7", lineWidth: 2 });
     const [up, setUp] = useState<string | undefined>(undefined);
     const [down, setDown] = useState<string | undefined>(undefined);
     return (
@@ -59,4 +61,19 @@ export const CouleursParType: Story = {
       </div>
     );
   },
+};
+
+/** Les vignettes qui illustrent chaque réglage des paramètres système, toutes ensemble. */
+export const Vignettes: Story = {
+  name: "Vignettes des réglages",
+  render: () => (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+      {ILLUSTRATION_IDS.map((id) => (
+        <div key={id} style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: "var(--lq-color-text-muted)" }}>
+          <SettingIllustration id={id} />
+          {id}
+        </div>
+      ))}
+    </div>
+  ),
 };

@@ -183,7 +183,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
           else ctx.lineTo(x, y);
         });
         ctx.stroke();
-        if (visible.length > 1 && lt?.fill !== false) {
+        if (visible.length > 1 && lt?.fill === true) {
           ctx.lineTo(zoomedXScale(visible[visible.length - 1].i + 0.5), priceHeight);
           ctx.lineTo(zoomedXScale(visible[0].i + 0.5), priceHeight);
           ctx.closePath();

@@ -351,6 +351,9 @@ export function ChartCanvasOverlay({
           <clipPath id={clipId}>
             <rect x={0} y={0} width={dims.boundedWidth} height={plotBoundedHeight} />
           </clipPath>
+          <clipPath id={`${clipId}-price`}>
+            <rect x={-12} y={-12} width={dims.boundedWidth + 24} height={Math.max(0, priceHeight) + 12} />
+          </clipPath>
         </defs>
         <g transform={`translate(${dims.margin.left}, ${dims.margin.top})`}>
           {/* priceHeight is 0 whenever a sub-pane is fullscreened (see usePaneLayout's own
@@ -587,6 +590,9 @@ export function ChartCanvasOverlay({
               />
             )}
             {visibleDrawings.map((dr) => {
+              // Poignées d'un dessin des prix : coupées au panneau des prix, jamais par-dessus l'en-tête ou le tracé d'un
+              // panneau d'indicateur situé dessous.
+              const handles = ((): React.ReactNode => {
               const isHovered = hoveredDrawingId === dr.id || selectedDrawingId === dr.id || selectedDrawingIds.includes(dr.id);
               if (!isHovered) return null;
               // A freehand stroke can have dozens of sampled points — individually draggable
@@ -744,6 +750,14 @@ export function ChartCanvasOverlay({
                     </>
                   )}
                 </g>
+              );
+            })();
+              return handles && (!dr.valueAxis || dr.valueAxis === "price") ? (
+                <g key={`handles-${dr.id}`} clipPath={`url(#${clipId}-price)`}>
+                  {handles}
+                </g>
+              ) : (
+                handles
               );
             })}
             {/* The measure tool's own two points, draggable to redefine the measurement after

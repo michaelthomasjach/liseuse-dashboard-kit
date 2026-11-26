@@ -317,7 +317,7 @@ const STYLE_KEYS: Partial<Record<keyof ChartStyleSettings, StyleKeyDoc>> = {
   lineGradient: { type: "boolean", description: "Ligne de clôture : dégradé vertical sur la ligne elle-même (faux : couleur unie)." },
   lineTopColor: { type: "string", description: "Ligne de clôture : couleur du dégradé au point le plus haut de la ligne." },
   lineBottomColor: { type: "string", description: "Ligne de clôture : couleur du dégradé au point le plus bas de la ligne." },
-  lineFill: { type: "boolean", description: "Ligne de clôture : remplissage sous la courbe (faux : une simple ligne)." },
+  lineFill: { type: "boolean", description: "Ligne de clôture : remplissage sous la courbe (vrai : aire remplie ; absent ou faux, par défaut : une simple ligne)." },
   lineFillColor: { type: "string", description: "Ligne de clôture : couleur du remplissage uni, opacité comprise (#rrggbbaa)." },
   lineFillGradient: { type: "boolean", description: "Ligne de clôture : remplissage en dégradé vertical." },
   lineFillTopColor: { type: "string", description: "Ligne de clôture : couleur du haut du dégradé, opacité comprise." },

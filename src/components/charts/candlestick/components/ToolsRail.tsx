@@ -228,25 +228,6 @@ export function ToolsRail({
           const menuOpen = openToolMenu === category.id;
           return (
             <Fragment key={category.id}>
-              {/* Séparateurs de jours, juste au-dessus de l'outil Texte : clic pour les afficher, clic droit pour leurs
-                  réglages (placement du nom du jour, couleurs, style des traits, opacité). */}
-              {category.id === "textNotes" && onToggleDaySeparators && (
-                <button
-                  type="button"
-                  className={["lq-chart__icon-button", daySeparatorsEnabled && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
-                  onClick={onToggleDaySeparators}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onOpenDaySeparatorsSettings?.();
-                  }}
-                  aria-pressed={daySeparatorsEnabled}
-                  aria-label="Séparateurs de jours"
-                  title="Séparateurs de jours (clic droit : réglages)"
-                >
-                  <DaySeparatorsIcon size={14} />
-                </button>
-              )}
               <div className="lq-chart__tool-group">
               {/* Two different jobs behind one button, by layout. Vertical rail: it *is* the tool
                   — click activates whatever the category currently represents, and the chevron
@@ -386,6 +367,25 @@ export function ToolsRail({
             title="Interroger l'IA sur une zone : cliquer au début puis à la fin de la zone"
           >
             <RangeAskIcon size={14} />
+          </button>
+        )}
+        {/* Séparateurs de jours, juste sous « Interroger l'IA sur une zone » : clic pour les afficher, clic droit pour leurs
+            réglages (placement du nom du jour, couleurs, style des traits, opacité). */}
+        {onToggleDaySeparators && (
+          <button
+            type="button"
+            className={["lq-chart__icon-button", daySeparatorsEnabled && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+            onClick={onToggleDaySeparators}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenDaySeparatorsSettings?.();
+            }}
+            aria-pressed={daySeparatorsEnabled}
+            aria-label="Séparateurs de jours"
+            title="Séparateurs de jours (clic droit : réglages)"
+          >
+            <DaySeparatorsIcon size={14} />
           </button>
         )}
         {/* Moved out of the drawing-tool categories above (see the filter on that map) — doesn't

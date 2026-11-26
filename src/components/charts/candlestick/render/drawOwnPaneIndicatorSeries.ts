@@ -80,7 +80,7 @@ function drawOwnPaneSeries(
         ? [
             { value: ind.rsiOversold ?? 30, color: levelColor(ind.rsiLowerColor, RSI_LEVEL_COLOR) },
             { value: ind.rsiOverbought ?? 70, color: levelColor(ind.rsiUpperColor, RSI_LEVEL_COLOR) },
-            ...(ind.rsiShowMiddle ? [{ value: 50, color: levelColor(ind.rsiMiddleColor, RSI_MIDDLE_COLOR) }] : []),
+            ...(ind.rsiShowMiddle !== false ? [{ value: 50, color: levelColor(ind.rsiMiddleColor, RSI_MIDDLE_COLOR) }] : []),
           ]
         : [
             { value: ind.chopLowerThreshold ?? 38.2, color: colorGrid },

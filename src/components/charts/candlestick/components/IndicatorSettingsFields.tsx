@@ -780,7 +780,7 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
       <TraceRow
         key="rsi-middle"
         name="Ligne médiane (50)"
-        visible={{ checked: d.rsiShowMiddle ?? false, onChange: (checked) => set({ rsiShowMiddle: checked ? true : undefined }) }}
+        visible={{ checked: d.rsiShowMiddle !== false, onChange: (checked) => set({ rsiShowMiddle: checked ? undefined : false }) }}
         colors={[{ value: d.rsiMiddleColor ?? RSI_MIDDLE_COLOR, onChange: (c) => set({ rsiMiddleColor: c }) }]}
       />
     );

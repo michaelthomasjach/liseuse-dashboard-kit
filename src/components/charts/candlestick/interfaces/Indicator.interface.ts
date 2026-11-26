@@ -199,7 +199,7 @@ export interface Indicator {
    *  (`RSI_LEVEL_COLOR`). */
   rsiUpperColor?: string;
   rsiLowerColor?: string;
-  /** "rsi" only — ligne médiane (50) affichée, et sa couleur (opacité comprise). Défaut : masquée, gris à 40 %. */
+  /** "rsi" only — ligne médiane (50) : `false` la masque ; sa couleur (opacité comprise). Défaut : affichée, gris à 40 %. */
   rsiShowMiddle?: boolean;
   rsiMiddleColor?: string;
   /** "rsiZones" only — nombre de bougies, jusqu'à la dernière affichée, sur lesquelles sont relevées les valeurs du RSI

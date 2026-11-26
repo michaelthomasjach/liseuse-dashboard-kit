@@ -96,13 +96,10 @@
 }
 
 .lq-script-docs-ask__answer--existe {
-  border-left-color: var(--lq-color-up);
 }
 .lq-script-docs-ask__answer--partiel {
-  border-left-color: var(--lq-color-warning, var(--lq-color-amber));
 }
 .lq-script-docs-ask__answer--absent {
-  border-left-color: var(--lq-color-down);
 }
 
 .lq-script-docs-ask__verdict {

@@ -182,7 +182,6 @@
 .lq-script-docs__nav-item--active {
   color: var(--lq-color-text);
   font-weight: var(--lq-font-weight-semibold, 600);
-  border-left-color: var(--lq-color-accent);
   background-color: var(--lq-color-hover);
 }
 
@@ -195,7 +194,6 @@
 .lq-script-docs__nav-item--tutorial {
   color: var(--lq-color-accent);
   font-weight: var(--lq-font-weight-bold, 700);
-  border-left-color: var(--lq-color-accent);
   background-color: color-mix(in srgb, var(--lq-color-accent) 10%, transparent);
 }
 

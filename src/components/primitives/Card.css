@@ -30,7 +30,6 @@
 .lq-card--highlight {
   background: transparent;
   border: none;
-  border-top: 3px solid var(--lq-color-text);
   border-radius: 0;
   box-shadow: none;
   overflow: visible;

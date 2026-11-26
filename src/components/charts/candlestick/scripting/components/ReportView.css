@@ -171,11 +171,9 @@
 }
 
 .lq-report__callout--positive {
-  border-left-color: var(--lq-color-positive);
 }
 
 .lq-report__callout--negative {
-  border-left-color: var(--lq-color-negative);
 }
 
 .lq-report__callout-title {

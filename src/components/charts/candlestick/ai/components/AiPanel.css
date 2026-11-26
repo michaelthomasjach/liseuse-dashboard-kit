@@ -157,7 +157,6 @@
 }
 
 .lq-ai__tool--error {
-  border-left-color: var(--lq-color-negative);
   color: var(--lq-color-negative);
 }
 

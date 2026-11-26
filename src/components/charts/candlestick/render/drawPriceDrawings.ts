@@ -1068,12 +1068,30 @@ function drawTimeframeLabels(
     if (!Number.isFinite(bx) || !Number.isFinite(by)) continue;
     ctx.globalAlpha = 0.85;
     ctx.fillStyle = dr.color ?? style.colorAccent;
+    // Couleur normalisée par le canevas (#rrggbb ou rgba(…)) : sert à choisir un texte lisible dessus.
+    const fill = String(ctx.fillStyle);
     ctx.fillRect(bx, by, w, h);
     ctx.globalAlpha = 1;
-    ctx.fillStyle = style.colorBg;
+    // Texte blanc ou presque noir selon la clarté de l'étiquette (et non la couleur du fond du graphique, transparente
+    // quand la toile l'est : le texte disparaissait).
+    ctx.fillStyle = readableTextOn(fill);
     ctx.fillText(text, bx + 4, by + h / 2 + 0.5);
   }
   ctx.restore();
+}
+
+/** Blanc ou presque noir, selon la clarté de la couleur donnée (#rrggbb ou rgb(a)(…), telle que la rend le canevas). */
+function readableTextOn(color: string): string {
+  let r = 0, g = 0, b = 0;
+  const hex = /^#([0-9a-f]{6})$/i.exec(color);
+  const rgb = /^rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)/i.exec(color);
+  if (hex) {
+    const n = parseInt(hex[1]!, 16);
+    r = n >> 16; g = (n >> 8) & 255; b = n & 255;
+  } else if (rgb) {
+    r = Number(rgb[1]); g = Number(rgb[2]); b = Number(rgb[3]);
+  } else return "#ffffff";
+  return 0.299 * r + 0.587 * g + 0.114 * b > 160 ? "#111111" : "#ffffff";
 }
 
 /** A channel's median line: dashed, slightly fainter than its two boundaries, same colour and width. */

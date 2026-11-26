@@ -892,7 +892,7 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
   // Survol d'un autre panneau (ou du graphique des prix) : lignes horizontales et étiquettes de valeur synchronisées
   // dans ce panneau, à couper ici. Son propre réticule, quand on le survole lui, reste.
   if (ownPane && !d.sourceId)
-    check("hoversync", "Lignes et étiquettes de survol venant des autres panneaux", d.hoverSync !== false, (c) => set({ hoverSync: c ? undefined : false }));
+    check("hoversync", "Lignes et étiquettes de survol venant des autres panneaux", d.hoverSync === true, (c) => set({ hoverSync: c ? true : undefined }));
   // Filigrane du panneau (pas sur les prix, dont le filigrane est le symbole) ni sur une moyenne posée sur un panneau.
   if (ownPane && !d.sourceId) display.push(<IndicatorWatermarkField key="wm" indicatorDraft={d} setIndicatorDraft={setIndicatorDraft} />);
 

@@ -166,7 +166,7 @@ export function renderCrosshair(canvas: HTMLCanvasElement, params: RenderCandles
       if (y >= 0 && y <= params.volumeHeight) hline(params.priceHeight + params.volumeTop, params.volumeHeight, y);
     }
     params.ownPaneIndicators.forEach((ind, idx) => {
-      if (ind.id === hoverIndicatorPaneId || ind.paneCollapsed || ind.hidden || ind.hoverSync === false) return;
+      if (ind.id === hoverIndicatorPaneId || ind.paneCollapsed || ind.hidden || ind.hoverSync !== true) return;
       const scale = params.zoomedOwnPaneScales[ind.id];
       const height = params.indicatorPaneHeights[idx];
       if (!scale || !(height > 0)) return;

@@ -189,8 +189,8 @@ export function ChartHoverBadges({
     // ligne verticale.
     for (const ind of gutter.panesVisible ? ownPaneIndicators : []) {
       if (ind.paneCollapsed) continue;
-      // Panneau réglé pour ne pas suivre le survol des autres (Indicator.hoverSync) : ses étiquettes seulement quand on le survole lui.
-      if (ind.hoverSync === false && ind.id !== hoverIndicatorPaneId) continue;
+      // Panneau réglé pour ne pas suivre le survol des autres (Indicator.hoverSync, faux par défaut) : ses étiquettes seulement quand on le survole lui.
+      if (ind.hoverSync !== true && ind.id !== hoverIndicatorPaneId) continue;
       const members = indicatorValues.filter((e) => (e.indicator.id === ind.id || e.indicator.sourceId === ind.id) && !e.indicator.hidden);
       if (members.length === 0) continue;
       const { scale, offset } = paneScaleAndOffset(ind.id);

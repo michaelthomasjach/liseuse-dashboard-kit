@@ -60,7 +60,7 @@ export function ChartEventTooltip({ events, mode, onClose, onExpand, left = 0, b
         <article
           key={i}
           className={["lq-chart-event-tooltip__card", onExpand && "lq-chart-event-tooltip__card--clickable"].filter(Boolean).join(" ")}
-          style={{ borderInlineStartColor: event.color }}
+          style={event.color ? ({ "--lq-event-color": event.color } as React.CSSProperties) : undefined}
           onClick={onExpand}
         >
           <h4 className="lq-chart-event-tooltip__title">{event.label}</h4>

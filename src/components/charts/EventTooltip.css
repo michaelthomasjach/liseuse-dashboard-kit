@@ -91,8 +91,8 @@
 
 .lq-chart-event-tooltip__card {
   padding: 8px 10px;
-  background-color: var(--lq-color-bg);
-  border-inline-start: 3px solid var(--lq-color-accent);
+  /* La couleur de l'évènement teinte tout le fond de la carte (pas de barre sur le bord). */
+  background-color: color-mix(in srgb, var(--lq-event-color, var(--lq-color-accent)) 22%, var(--lq-color-bg));
   border-radius: var(--lq-radius-sm);
 }
 
@@ -103,7 +103,7 @@
 }
 
 .lq-chart-event-tooltip__card--clickable:hover {
-  background-color: var(--lq-color-hover);
+  background-color: color-mix(in srgb, var(--lq-event-color, var(--lq-color-accent)) 34%, var(--lq-color-bg));
 }
 
 .lq-chart-event-tooltip__title {

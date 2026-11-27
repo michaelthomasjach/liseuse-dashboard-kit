@@ -103,6 +103,12 @@ export interface ChartWorkspaceAppPanel {
   icon: import("react").ReactNode;
   content: import("react").ReactNode;
   badge?: number;
+  /** Pastille verte qui clignote en haut à droite du bouton (d'autres personnes sont en ligne…). */
+  live?: boolean;
+  /** Le bouton clignote une fois toutes les 10 secondes pour attirer l'œil (messages non lus…). */
+  attention?: boolean;
+  /** Information affichée à droite du titre, dans l'en-tête du panneau ouvert (« 3 en ligne »…). */
+  headerInfo?: import("react").ReactNode;
 }
 
 export interface ChartWorkspaceProps {
@@ -1471,6 +1477,7 @@ function ChartWorkspaceBody({
               <div className="lq-chart-workspace__app-panel">
                 <div className="lq-chart-workspace__side-panel-header">
                   <span className="lq-chart-workspace__side-panel-title">{appPanel.label}</span>
+                  {appPanel.headerInfo ? <span className="lq-chart-workspace__app-panel-info">{appPanel.headerInfo}</span> : null}
                 </div>
                 <div className="lq-chart-workspace__app-panel-body">{appPanel.content}</div>
               </div>
@@ -1693,7 +1700,7 @@ function ChartWorkspaceBody({
           showFullscreenButton={fullscreenButton}
           onCapture={(action) => void captureFrontPanel(action)}
           actions={railActions}
-          appPanels={appPanels?.map(({ id, label, icon, badge }) => ({ id, label, icon, ...(badge !== undefined ? { badge } : {}) }))}
+          appPanels={appPanels?.map(({ id, label, icon, badge, live, attention }) => ({ id, label, icon, ...(badge !== undefined ? { badge } : {}), ...(live ? { live } : {}), ...(attention ? { attention } : {}) }))}
           bottomActions={railBottomActions}
           onOpenHelp={() => {
             setHelpTab("features");

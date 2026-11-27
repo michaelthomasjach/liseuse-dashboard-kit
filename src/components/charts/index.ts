@@ -215,3 +215,5 @@ export { alertSeriesValues } from "./candlestick/alertSeries";
 // Préférences des légendes (repli, masquage) à retenir sur le compte, par clé stable.
 export { indicatorLegendKey } from "./candlestick/legendPrefs";
 export type { ChartLegendPrefs } from "./candlestick/legendPrefs";
+/** Panneau d'un indicateur : sur les prix, le volume, ou le sien (RSI, MACD…). */
+export { stylePaneKind as indicatorPaneKind } from "./candlestick/styleRules";

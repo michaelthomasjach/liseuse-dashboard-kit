@@ -531,7 +531,8 @@
 .lq-chart-workspace__watchlist-row {
   display: flex;
   align-items: stretch;
-  border-bottom: 1px solid var(--lq-color-border-subtle);
+  /* Pas de filet entre les lignes : le survol teinte la ligne, arrondie, pour la repérer. */
+  border-radius: var(--lq-radius-sm, 6px);
 }
 
 .lq-chart-workspace__watchlist-row:hover {
@@ -2421,6 +2422,36 @@
 .lq-chart-workspace__app-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .lq-chart-workspace__app-panel-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .lq-chart-workspace__app-panel-button { position: relative; }
+/* En-tête du panneau ouvert : une information discrète à droite du titre (« 3 en ligne »). */
+.lq-chart-workspace__app-panel-info { margin-left: 8px; color: var(--lq-color-text-muted); font-size: 0.75rem; font-weight: 500; }
+/* Pastille « en ligne » : verte, en haut à droite du bouton, qui pulse doucement. */
+.lq-chart-workspace__rail-live {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  pointer-events: none;
+  animation: lq-rail-live 1.6s ease-in-out infinite;
+}
+@keyframes lq-rail-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+/* Messages non lus : le bouton clignote une fois toutes les 10 secondes (fond teinté bref, deux fois). */
+.lq-chart-workspace__app-panel-button--attention { animation: lq-rail-attention 10s ease-in-out infinite; }
+@keyframes lq-rail-attention {
+  0%, 88%, 100% { background-color: transparent; transform: scale(1); }
+  91% { background-color: color-mix(in srgb, var(--lq-color-accent, #6c87c9) 35%, transparent); transform: scale(1.12); }
+  94% { background-color: transparent; transform: scale(1); }
+  97% { background-color: color-mix(in srgb, var(--lq-color-accent, #6c87c9) 35%, transparent); transform: scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lq-chart-workspace__rail-live, .lq-chart-workspace__app-panel-button--attention { animation: none; }
+  .lq-chart-workspace__app-panel-button--attention { background-color: color-mix(in srgb, var(--lq-color-accent, #6c87c9) 22%, transparent); }
+}
 .lq-chart-workspace__rail-badge {
   position: absolute;
   top: 1px;

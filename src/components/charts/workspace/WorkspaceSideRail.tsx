@@ -40,7 +40,7 @@ export interface WorkspaceSideRailProps {
   /** Boutons de l'application, juste au-dessus de l'aide. */
   actions?: WorkspaceRailAction[];
   /** Panneaux de l'application (ex. discussion) : un bouton chacun, juste au-dessus de l'appareil photo. */
-  appPanels?: { id: string; label: string; icon: ReactNode; badge?: number }[];
+  appPanels?: { id: string; label: string; icon: ReactNode; badge?: number; live?: boolean; attention?: boolean }[];
   /** Boutons de l'application tout en bas du rail, sous l'aide (ex. fermer le graphique). */
   bottomActions?: WorkspaceRailAction[];
   onOpenHelp: () => void;
@@ -168,7 +168,7 @@ export function WorkspaceSideRail({
           <button
             key={p.id}
             type="button"
-            className={["lq-chart__icon-button lq-chart-workspace__app-panel-button", on && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+            className={["lq-chart__icon-button lq-chart-workspace__app-panel-button", on && "lq-chart__icon-button--active", p.attention && !on && "lq-chart-workspace__app-panel-button--attention"].filter(Boolean).join(" ")}
             onClick={() => onToggleTab(tab)}
             aria-label={p.badge ? `${p.label} (${p.badge} nouveau${p.badge > 1 ? "x" : ""})` : p.label}
             aria-pressed={on}
@@ -176,6 +176,7 @@ export function WorkspaceSideRail({
           >
             {p.icon}
             {p.badge ? <span className="lq-chart-workspace__rail-badge" aria-hidden="true">{p.badge > 99 ? "99+" : p.badge}</span> : null}
+            {p.live ? <span className="lq-chart-workspace__rail-live" aria-hidden="true" /> : null}
           </button>
         );
       })}

@@ -204,6 +204,44 @@ function sample(candles: Candle[]): Candle[] {
   return Array.from({ length: MAX_PROMPT_CANDLES }, (_, i) => candles[Math.round(i * step)]);
 }
 
+/** Une valeur d'indicateur en texte : un nombre, ou les champs numériques d'un objet (« macd=1.2 signal=0.8 »). */
+function valueText(v: unknown): string {
+  if (typeof v === "number") return Number.isFinite(v) ? num(v) : "";
+  if (v && typeof v === "object") {
+    return Object.entries(v as Record<string, unknown>)
+      .filter(([, x]) => typeof x === "number" && Number.isFinite(x))
+      .map(([k, x]) => `${k}=${num(x as number)}`)
+      .join(" ");
+  }
+  return "";
+}
+
+/** Au plus tant d'indicateurs dans la demande (les premiers affichés). */
+const MAX_PROMPT_INDICATORS = 12;
+
+/**
+ * Les indicateurs affichés sur la zone : pour chacun, sa valeur aux mêmes bougies échantillonnées que les cours, puis
+ * sa valeur au début et à la fin de la zone, pour que l'IA lise RSI, MACD, moyennes… sans les recalculer.
+ */
+export function indicatorLines(data: Candle[], candles: Candle[], indicators: { label: string; values: unknown[] }[]): string[] {
+  if (!indicators.length || !candles.length) return [];
+  const indexOf = new Map(data.map((c, i) => [c, i]));
+  const picked = sample(candles);
+  const lines: string[] = ["Indicateurs affichés sur le graphique, aux mêmes bougies — date;valeur :"];
+  for (const ind of indicators.slice(0, MAX_PROMPT_INDICATORS)) {
+    const rows = picked
+      .map((c) => {
+        const i = indexOf.get(c);
+        const text = i === undefined ? "" : valueText(ind.values[i]);
+        return text ? `${c.date.toISOString()};${text}` : null;
+      })
+      .filter((r): r is string => r !== null);
+    if (!rows.length) continue;
+    lines.push(`${ind.label} :`, ...rows);
+  }
+  return lines.length > 1 ? lines : [];
+}
+
 /** La demande complète envoyée pour une zone : d'abord la tâche (propre à chaque option) et ses consignes, puis le
  *  contexte (symbole, unité de temps, dates), les chiffres, la structure technique et un échantillon des bougies. */
 export function buildRangeAskRequest(args: {
@@ -214,6 +252,8 @@ export function buildRangeAskRequest(args: {
   symbol?: string;
   timeframe?: string;
   formatDate: (d: Date) => string;
+  /** Indicateurs affichés et leurs valeurs, alignées sur `data` (une par bougie). */
+  indicators?: { label: string; values: unknown[] }[];
 }): ChartRangeAskRequest {
   const { kind, range, data, symbol, timeframe, formatDate } = args;
   const candles = candlesInRange(data, range);
@@ -232,6 +272,7 @@ export function buildRangeAskRequest(args: {
     );
     const rows = sample(candles).map((c) => `${c.date.toISOString()};${num(c.open)};${num(c.high)};${num(c.low)};${num(c.close)}${typeof c.volume === "number" ? `;${Math.round(c.volume)}` : ""}`);
     lines.push(`Bougies${rows.length < candles.length ? ` (${rows.length} sur ${candles.length}, échantillonnées)` : ""} — date;ouverture;haut;bas;clôture;volume :`, ...rows);
+    lines.push(...indicatorLines(data, candles, args.indicators ?? []));
   }
   const summary = `${label}\n(zone du ${formatDate(range.from)} au ${formatDate(range.to)}, ${candles.length} bougie${candles.length > 1 ? "s" : ""})`;
   return { kind, question: label, from: range.from, to: range.to, candles, symbol, timeframe, prompt: lines.join("\n"), summary };

@@ -2180,7 +2180,9 @@ function CandlestickChartBody({
   }, [aiPrompt?.id, aiSend]);
   function askAboutRange(kind: ChartRangeAskKind, question?: string) {
     if (askRange === null) return;
-    const request = buildRangeAskRequest({ kind, question, range: askRange, data, symbol: symbolName ?? symbol, timeframe, formatDate: dFmt });
+    // Valeurs des indicateurs affichés (non masqués), jointes à la demande comme données de la zone.
+    const indicators = indicatorValues.filter(({ indicator }) => !indicator.hidden).map(({ indicator, values }) => ({ label: indicatorLabel(indicator), values }));
+    const request = buildRangeAskRequest({ kind, question, range: askRange, data, symbol: symbolName ?? symbol, timeframe, formatDate: dFmt, indicators });
     if (onRangeAsk) onRangeAsk(request);
     else {
       setAiOpen(true);

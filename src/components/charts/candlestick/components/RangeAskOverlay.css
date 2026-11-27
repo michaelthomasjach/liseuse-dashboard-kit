@@ -10,7 +10,8 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  background: color-mix(in srgb, var(--lq-color-accent) 14%, transparent);
+  /* Dégradé léger aux couleurs de l'IA (comme l'aperçu pendant la pose, voir drawRangeAskPreview). */
+  background: linear-gradient(90deg, rgb(66 133 244 / 13%), rgb(155 114 203 / 12%) 35%, rgb(217 101 112 / 11%) 70%, rgb(244 180 0 / 10%));
 }
 
 .lq-chart__range-ask-line {

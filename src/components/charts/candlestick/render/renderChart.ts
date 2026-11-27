@@ -1,3 +1,4 @@
+import { drawRangeAskPreview } from "./drawRangeAskPreview";
 import { drawPriceAlertLines } from "./drawPriceAlertLines";
 import { indicatorAxisAnnotations } from "../axisAnnotations";
 import { drawDaySeparators } from "../daySeparators";
@@ -104,6 +105,8 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
   // sont repeints par-dessus et restent visibles dans le futur, y compris pendant leur tracé ; seule la ligne du
   // dernier cours réel reste masquée (elle trahirait le futur).
   if (params.replayActive) drawPriceDrawings(ctx, { ...params, livePrice: false }, style);
+  // Zone « Interroger l'IA » en cours de pose : par-dessus tout, sur toute la hauteur (prix et panneaux).
+  drawRangeAskPreview(ctx, params);
   return style;
 }
 

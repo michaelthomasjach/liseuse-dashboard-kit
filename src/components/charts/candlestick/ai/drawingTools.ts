@@ -41,6 +41,8 @@ const SHAPES: Record<string, { type: LineType; points: [number, number]; doc: st
   elliott_correction: { type: "elliottCorrection", points: [4, 4], doc: "4 points 0, A, B, C" },
   tete_et_epaules: { type: "headShoulders", points: [7, 7], doc: "7 points" },
   tasse_avec_anse: { type: "cupHandle", points: [5, 5], doc: "5 points A à E" },
+  double_bottom: { type: "doubleBottom", points: [5, 5], doc: "5 points : départ, creux 1, sommet, creux 2, sortie (à l'envers : double top)" },
+  triple_bottom: { type: "tripleBottom", points: [7, 7], doc: "7 points : départ, creux 1, sommet 1, creux 2, sommet 2, creux 3, sortie (à l'envers : triple top)" },
   projection_de_prix: { type: "forecast", points: [2, 2], doc: "2 points (départ, arrivée)" },
   projection_de_plage: { type: "rangeForecast", points: [3, 3], doc: "3 points : départ, max, min" },
   position_longue: { type: "longPosition", points: [3, 3], doc: "3 points : entrée, objectif (date de sortie, prix), stop (prix)" },

@@ -76,7 +76,9 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
     dr.lineType === "brush" ||
     dr.lineType === "elbowArrow" ||
     dr.lineType === "headShoulders" ||
-    dr.lineType === "cupHandle"
+    dr.lineType === "cupHandle" ||
+    dr.lineType === "doubleBottom" ||
+    dr.lineType === "tripleBottom"
   ) {
     // Same "polyline through every point" distance for a freehand stroke, an open-ended
     // elbow-arrow polyline, or an Elliott wave's/Head & Shoulders'/Cup & Handle's own fixed

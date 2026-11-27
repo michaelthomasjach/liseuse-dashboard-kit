@@ -21,6 +21,8 @@ import {
   OverlayBadgeIcon,
   HeadShouldersIcon,
   CupHandleIcon,
+  DoubleBottomIcon,
+  TripleBottomIcon,
   ForecastIcon,
   RangeForecastIcon,
   LongPositionIcon,
@@ -81,6 +83,9 @@ export const MULTI_POINT_TOOLS: Partial<Record<DrawingToolType, { extraPoints: n
   // reason (no computed point, no special preview beyond the generic polyline-to-cursor one) so
   // it needs nothing beyond this entry.
   cupHandle: { extraPoints: 3, labels: ["A — Début de la tasse", "B — Fond de la tasse", "C — Fin de la tasse / début de l'anse", "D — Fond de l'anse", "E — Fin de l'anse"] },
+  // Double / triple bottom : départ, puis creux et sommets en alternance, puis la sortie (cassure de la ligne de cou).
+  doubleBottom: { extraPoints: 3, labels: ["Départ", "Creux 1", "Sommet", "Creux 2", "Sortie"] },
+  tripleBottom: { extraPoints: 5, labels: ["Départ", "Creux 1", "Sommet 1", "Creux 2", "Sommet 2", "Creux 3", "Sortie"] },
   // The 3 pitchfork points — labeled A/B/C to match the standard Andrews' Pitchfork reference
   // diagrams (and the same lettering drawPitchfork.ts itself now draws next to each point on the
   // chart). A (x1/y1) is the handle every variant's own median starts from or targets; B/C (x2/y2,
@@ -205,6 +210,8 @@ export const DRAWING_TOOL_CATEGORIES: DrawingToolCategory[] = [
       { type: "elliottCorrection", label: "Vague d'Elliott (correctrice)", icon: ElliottCorrectionIcon },
       { type: "headShoulders", label: "ETE (Épaule-Tête-Épaule)", icon: HeadShouldersIcon },
       { type: "cupHandle", label: "Tasse avec anse", icon: CupHandleIcon },
+      { type: "doubleBottom", label: "Double bottom (ou top)", icon: DoubleBottomIcon },
+      { type: "tripleBottom", label: "Triple bottom (ou top)", icon: TripleBottomIcon },
     ],
   },
   {
@@ -288,7 +295,7 @@ const DRAWING_NOUNS: Record<string, string> = {
   rectangle: "le rectangle", zones: "la zone",
   elbowArrow: "la flèche", arrowUp: "la flèche", arrowDown: "la flèche", brush: "le tracé",
   fibonacci: "le Fibonacci", fibonacciExtension: "le Fibonacci",
-  elliottImpulse: "la vague", elliottCorrection: "la vague", headShoulders: "la figure", cupHandle: "la figure",
+  elliottImpulse: "la vague", elliottCorrection: "la vague", headShoulders: "la figure", cupHandle: "la figure", doubleBottom: "la figure", tripleBottom: "la figure",
   forecast: "la projection", rangeForecast: "la projection", longPosition: "la position", shortPosition: "la position",
   text: "le texte", comment: "le commentaire", note: "la note", priceNote: "la note", pin: "l'épingle", flagMark: "la marque",
   signpost: "le panneau", priceLabel: "l'étiquette", table: "le tableau", symbolOverlay: "le symbole",

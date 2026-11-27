@@ -22,6 +22,8 @@ export type DrawingToolType =
   | "zones"
   | "headShoulders"
   | "cupHandle"
+  | "doubleBottom"
+  | "tripleBottom"
   | "forecast"
   | "rangeForecast"
   | "longPosition"

@@ -30,6 +30,8 @@ const SHAPE_FILL_TOOLS = new Set([
   "rectangle",
   "table",
   "headShoulders",
+  "doubleBottom",
+  "tripleBottom",
   "pin",
   "flagMark",
 ]);

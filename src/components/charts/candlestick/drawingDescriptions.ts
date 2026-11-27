@@ -387,7 +387,11 @@ Un comptage qui viole l'une de ces règles **doit être refait**.
 
 ## La subjectivité
 
-Elle est réelle et assumée — *deux analystes comptent rarement de la même manière*. Chaque point reste déplaçable pour ajuster une lecture.`,
+Elle est réelle et assumée — *deux analystes comptent rarement de la même manière*. Chaque point reste déplaçable pour ajuster une lecture.
+
+## L'objectif
+
+Cochez **« Projection de l'objectif théorique »** dans ses paramètres : deux cibles de la vague 5 partent du point 4, **égalité avec la vague 1** et **0,618 × la distance 0 → 3**.`,
 
   elliottCorrection: `**Quatre clics posent les points 0, A, B et C**, formant les trois segments d'une vague correctrice — le contre-mouvement qui suit une impulsion. Chaque sommet porte sa lettre.
 
@@ -405,7 +409,9 @@ Il se combine naturellement avec la vague impulsive — cinq vagues suivies d'un
 
 ## La subjectivité
 
-La même que pour l'impulsion. Les quatre points restent déplaçables.`,
+La même que pour l'impulsion. Les quatre points restent déplaçables.
+
+Cochez **« Projection de l'objectif théorique »** dans ses paramètres : deux cibles de C partent de B, **C = A** et **C = 1,618 × A**.`,
 
   headShoulders: `**Sept clics posent la figure complète**, dans l'ordre du tracé :
 
@@ -433,7 +439,9 @@ Et c'est **la cassure de la ligne de cou qui valide la figure** — pas l'épaul
 
 ## L'objectif
 
-Il se mesure en reportant **sous** la ligne de cou la hauteur qui la sépare de la tête. Les sept points restent déplaçables.`,
+Il se mesure en reportant **sous** la ligne de cou la hauteur qui la sépare de la tête. Les sept points restent déplaçables.
+
+Cochez **« Projection de l'objectif théorique »** dans ses paramètres : le graphique trace la flèche de mesure et la ligne de l'objectif, prix affiché.`,
 
   cupHandle: `**Cinq clics posent la figure**, chacun étiqueté sur le graphique :
 
@@ -458,7 +466,41 @@ La lecture est haussière : la tasse traduit l'**absorption progressive des vend
 
 ## L'objectif
 
-Reporter la **profondeur de la tasse** au-dessus du point de cassure. Les cinq points restent déplaçables, de quoi faire épouser la forme à la structure réelle.`,
+Reporter la **profondeur de la tasse** au-dessus du point de cassure. Les cinq points restent déplaçables, de quoi faire épouser la forme à la structure réelle.
+
+Cochez **« Projection de l'objectif théorique »** dans ses paramètres : le graphique trace la flèche de mesure et la ligne de l'objectif, prix affiché.`,
+
+  doubleBottom: `**Cinq clics posent la figure** : le départ, le **creux 1**, le **sommet** entre les deux, le **creux 2**, puis la sortie.
+
+La **ligne de cou** passe par le sommet et se prolonge vers la droite ; la zone entre les creux et la ligne de cou est remplie.
+
+## Comment ça se lit
+
+Deux échecs à enfoncer le même support : les vendeurs s'épuisent. **La figure n'est validée qu'à la cassure de la ligne de cou** ; avant, ce n'est qu'un range.
+
+Tracée à l'envers (deux sommets au même niveau, un creux entre eux), elle se lit en **double top**, de retournement baissier.
+
+## L'objectif
+
+Reporter la **hauteur entre le creux le plus bas et la ligne de cou** au-delà de la ligne de cou.
+
+Cochez **« Projection de l'objectif théorique »** dans ses paramètres : le graphique trace la flèche de mesure et la ligne de l'objectif, prix affiché.`,
+
+  tripleBottom: `**Sept clics posent la figure** : le départ, **creux 1**, **sommet 1**, **creux 2**, **sommet 2**, **creux 3**, puis la sortie.
+
+La **ligne de cou** passe par le plus haut des deux sommets et se prolonge vers la droite.
+
+## Comment ça se lit
+
+Trois appuis sur le même support : un plancher plus solide encore qu'un double bottom. **La cassure de la ligne de cou valide la figure.**
+
+Tracée à l'envers, elle se lit en **triple top**.
+
+## L'objectif
+
+Reporter la **hauteur entre le creux le plus bas et la ligne de cou** au-delà de la ligne de cou.
+
+Cochez **« Projection de l'objectif théorique »** dans ses paramètres : le graphique trace la flèche de mesure et la ligne de l'objectif, prix affiché.`,
 
   forecast: `**Deux clics — un départ, une arrivée — tracent non pas une droite mais une courbe bombée**, terminée par une pointe.
 

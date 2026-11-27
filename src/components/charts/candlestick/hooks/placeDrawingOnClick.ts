@@ -458,7 +458,7 @@ export function placeDrawingOnClick(e: React.MouseEvent<SVGRectElement>, ctx: Dr
           // own doc), guaranteed by `multiPoint` above — narrower than what TS can infer just from
           // the (wider-keyed) lookup being truthy.
           lineType: activeTool as
-            | "fibonacciExtension" | "elliottCorrection" | "elliottImpulse" | "headShoulders" | "cupHandle"
+            | "fibonacciExtension" | "elliottCorrection" | "elliottImpulse" | "headShoulders" | "cupHandle" | "doubleBottom" | "tripleBottom"
             | "pitchfork" | "schiffPitchfork" | "modifiedSchiffPitchfork" | "insidePitchfork" | "rangeForecast",
           extraPoints: nextExtra,
         },

@@ -4,6 +4,7 @@ import { Tabs } from "../../../primitives/Tabs";
 import { Input } from "../../../forms/Input";
 import { InputNumber } from "../../../forms/InputNumber";
 import { Checkbox } from "../../../forms/Checkbox";
+import { PATTERN_TARGET_TYPES } from "../patternTargets";
 import { Select } from "../../../forms/Select";
 import { DatePicker } from "../../../forms/DatePicker";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
@@ -205,6 +206,13 @@ export function DrawingEditModal({
               checked={!draft.timeframeLabelHidden}
               onChange={(on) => setDraft({ ...draft, timeframeLabelHidden: !on })}
               label={`Étiquette d'unité de temps (tracé en ${timeframeLabelOf ? timeframeLabelOf(draft.timeframe) : draft.timeframe})`}
+            />
+          )}
+          {PATTERN_TARGET_TYPES.has(draft.lineType ?? "") && (
+            <Checkbox
+              checked={draft.targetProjection ?? false}
+              onChange={(targetProjection) => setDraft({ ...draft, targetProjection })}
+              label="Projection de l'objectif théorique"
             />
           )}
           {(draft.lineType === "channel" || draft.lineType === "disjointChannel") && (

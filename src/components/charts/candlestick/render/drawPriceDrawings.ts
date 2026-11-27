@@ -26,6 +26,8 @@ import { drawPitchforkDrawings } from "./drawPitchfork";
 import { drawRangeForecastDrawings } from "./drawRangeForecast";
 import { drawHeadShouldersDrawings } from "./drawHeadShoulders";
 import { drawCupHandleDrawings } from "./drawCupHandle";
+import { drawDoubleTripleBottomDrawings } from "./drawDoubleTripleBottom";
+import { drawPatternTargets } from "./drawPatternTargets";
 import { drawLongShortPositionDrawings } from "./drawLongShortPosition";
 import { drawTextAndCommentDrawings } from "./drawTextAndComment";
 import { drawNoteDrawings } from "./drawNote";
@@ -108,6 +110,8 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         dr.lineType === "table" ||
         dr.lineType === "headShoulders" ||
         dr.lineType === "cupHandle" ||
+        dr.lineType === "doubleBottom" ||
+        dr.lineType === "tripleBottom" ||
         PITCHFORK_LINE_TYPES.has(dr.lineType ?? "") ||
         // Its x1/y1/x2/y2 aren't real coordinates (see the lineType's own doc comment) — just
         // the overlay's own first/last raw points, unrelated to the main series' price space.
@@ -576,6 +580,9 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     drawTableDrawings(ctx, params, style);
     drawHeadShouldersDrawings(ctx, params, style);
     drawCupHandleDrawings(ctx, params, style);
+    drawDoubleTripleBottomDrawings(ctx, params, style);
+    // Objectif théorique des figures chartistes qui le demandent, par-dessus la figure.
+    drawPatternTargets(ctx, params, style);
 
     // L'outil Mesurer (armé depuis la barre ou au raccourci Maj + clic) montre son résultat en direct,
     // rectangle et encart chiffré compris, au lieu d'un simple trait jusqu'au pointeur.

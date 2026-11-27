@@ -110,6 +110,8 @@ export {
   ZonesIcon,
   HeadShouldersIcon,
   CupHandleIcon,
+  DoubleBottomIcon,
+  TripleBottomIcon,
   ForecastIcon,
   RangeForecastIcon,
   LongPositionIcon,

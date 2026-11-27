@@ -111,6 +111,9 @@ export interface TrendLineDrawing {
   /** "channel"/"disjointChannel" only — the dashed median line halfway between the two lines.
    *  Unset (default) draws it; `false` hides it. */
   channelMedian?: boolean;
+  /** Figures chartistes (ETE, tasse avec anse, vagues d'Elliott, double / triple bottom) : projette l'objectif
+   *  théorique tiré de la hauteur de la figure (voir patternTargets.ts). Absent : pas de projection. */
+  targetProjection?: boolean;
   /** "longPosition"/"shortPosition" only — the two bands' own fills, reward and risk.
    *
    *  They default to a pale green and a pale red *independently of the palette*, rather than to
@@ -262,6 +265,8 @@ export interface TrendLineDrawing {
     | "zones"
     | "headShoulders"
     | "cupHandle"
+    | "doubleBottom"
+    | "tripleBottom"
     | "forecast"
     | "rangeForecast"
     | "longPosition"

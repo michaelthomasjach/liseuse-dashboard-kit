@@ -948,6 +948,22 @@ export const CupHandleIcon = (props: AnimatedIconProps) => (
   </IconBase>
 );
 
+/** Double bottom : deux creux au même niveau, la ligne de cou pointillée au-dessus. */
+export const DoubleBottomIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d="M3 9h18" strokeDasharray="2.5 2.5" />
+    <path d="M2 5 7 18 12 9 17 18 22 5" />
+  </IconBase>
+);
+
+/** Triple bottom : trois creux au même niveau, la ligne de cou pointillée au-dessus. */
+export const TripleBottomIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d="M3 9h18" strokeDasharray="2.5 2.5" />
+    <path d="M2 5 5.5 18 9 9 12 18 15 9 18.5 18 22 5" />
+  </IconBase>
+);
+
 /** A curved (not straight) arrow from a dot to an arrowhead — distinguishing this from
  *  TrendLineIcon's own straight diagonal, matching the tool's actual curved-projection line. */
 export const ForecastIcon = (props: AnimatedIconProps) => (

@@ -332,7 +332,9 @@ Il est particulièrement utile lorsqu'un graphique est destiné à être **parta
 
 La position de la pointe suit le sens du tracé. La fenêtre d'édition permet d'ajouter ou de retirer une pointe **à chaque extrémité**, et d'associer un texte au segment.`,
 
-  fibonacci: `**Deux clics définissent le mouvement à analyser : le premier point vaut 0 %, le second 100 %.**
+  fibonacci: `**Deux clics définissent le mouvement à analyser : le premier point (début du mouvement) vaut 100 %, le second (sa fin) 0 %.**
+
+Les retracements se lisent donc depuis la fin du mouvement : du creux vers le sommet pour une hausse, le 38,2 % est 38,2 % sous le sommet.
 
 L'écart de prix est ensuite découpé selon les ratios standard — **0, 23,6 %, 38,2 %, 50 %, 61,8 %, 78,6 % et 100 %** — chaque niveau étant tracé comme un segment horizontal étiqueté de son ratio et du prix correspondant.
 

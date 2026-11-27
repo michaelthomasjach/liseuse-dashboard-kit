@@ -229,7 +229,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         if (dr.channelMedian !== false) strokeMedian(ctx, (x1 + p4x) / 2, (y1 + p4y) / 2, (x2 + p3x) / 2, (y2 + p3y) / 2);
       }
 
-      // "fibonacci" slices y1 (0%) to y2 (100%) into the standard retracement ratios, each its
+      // "fibonacci" slices y2 (0%, the move's end) to y1 (100%, its start) into the standard retracement ratios, each its
       // own horizontal segment spanning x1/x2 — on top of the diagonal x1/y1–x2/y2 already drawn
       // above, which is unaffected (drawX*/drawY* only differ from x1/y1/x2/y2 when extended).
       // Labeled directly (not through the `formatPrice` prop's pFmt — that's declared after this
@@ -242,7 +242,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         ctx.textAlign = "right";
         ctx.textBaseline = "bottom";
         for (const ratio of FIBONACCI_LEVELS) {
-          const price = dr.y1 + (dr.y2 - dr.y1) * ratio;
+          const price = dr.y2 + (dr.y1 - dr.y2) * ratio;
           const y = zoomedPriceScale(price);
           ctx.beginPath();
           ctx.moveTo(x1, y);

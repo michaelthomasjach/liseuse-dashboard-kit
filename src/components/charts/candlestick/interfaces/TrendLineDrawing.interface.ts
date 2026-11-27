@@ -145,7 +145,7 @@ export interface TrendLineDrawing {
    *  use for this tool) — both lines are segments matching x1/x2's own date span, neither
    *  extends. Omitted for a regular hand-drawn trend line — set automatically by the axis "+"
    *  buttons. "fibonacci" is a free two-point line like a regular trend line (same two draggable
-   *  endpoints, no extra points needed) whose price range between y1 (0%) and y2 (100%) is
+   *  endpoints, no extra points needed) whose price range between y2 (0%, the end of the move) and y1 (100%, its start — the usual convention: retracements are measured back from the end) is
    *  sliced into the standard retracement ratios (see FIBONACCI_LEVELS) — each drawn as its own
    *  horizontal segment spanning x1/x2's date range, labeled with its ratio and price.
    *  "fibonacciExtension"/"elliottCorrection"/"elliottImpulse"/"disjointChannel" need more than

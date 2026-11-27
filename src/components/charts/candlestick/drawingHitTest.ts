@@ -65,7 +65,7 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
       distanceToSegment(mouseX, mouseY, fx1, zoomedPriceScale(dr.y1), fx2, zoomedPriceScale(dr.y2)),
       // ...plus whichever retracement level line is closest.
       ...FIBONACCI_LEVELS.map((ratio) => {
-        const y = zoomedPriceScale(dr.y1 + (dr.y2 - dr.y1) * ratio);
+        const y = zoomedPriceScale(dr.y2 + (dr.y1 - dr.y2) * ratio);
         return distanceToSegment(mouseX, mouseY, fx1, y, fx2, y);
       })
     );

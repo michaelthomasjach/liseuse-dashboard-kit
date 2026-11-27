@@ -35,7 +35,7 @@ const SHAPES: Record<string, { type: LineType; points: [number, number]; doc: st
   pinceau: { type: "brush", points: [2, 200], doc: "suite de points à main levée" },
   fleche_haut: { type: "arrowUp", points: [1, 1], doc: "1 point" },
   fleche_bas: { type: "arrowDown", points: [1, 1], doc: "1 point" },
-  fibonacci_retracement: { type: "fibonacci", points: [2, 2], doc: "2 points (0 % puis 100 %)" },
+  fibonacci_retracement: { type: "fibonacci", points: [2, 2], doc: "2 points : début du mouvement (100 %) puis sa fin (0 %)" },
   fibonacci_extension: { type: "fibonacciExtension", points: [3, 3], doc: "3 points A, B, C" },
   elliott_impulsion: { type: "elliottImpulse", points: [6, 6], doc: "6 points 0 à 5" },
   elliott_correction: { type: "elliottCorrection", points: [4, 4], doc: "4 points 0, A, B, C" },

@@ -391,6 +391,8 @@
 .lq-chart__plot[data-lq-custom-bg] .lq-chart__pane-header {
   --lq-color-text: var(--lq-chart-on-bg-text);
   --lq-color-text-muted: var(--lq-chart-on-bg-muted);
+  /* Les valeurs (RSI, MACD…) héritent la couleur du texte : celle lisible sur ce fond, pas celle du thème. */
+  color: var(--lq-chart-on-bg-text);
 }
 
 /* Échelle des prix à gauche : les pastilles collent au bord droit de la colonne, contre le tracé. */

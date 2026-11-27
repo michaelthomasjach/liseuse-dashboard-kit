@@ -597,6 +597,20 @@ export function chartStyleCssVars(raw: ChartStyleSettings): CSSProperties {
     vars["--lq-color-accent-contrast"] = t.accentContrast;
     vars["--lq-color-fill"] = t.accent;
     vars.color = t.text;
+  } else if (raw.resolvedMode) {
+    // Toile d'une couleur réglée qui contredit le mode (blanche en mode nuit, noire en mode jour) : les bulles, la
+    // légende, les valeurs et les en-têtes de panneaux prennent les surfaces et textes du mode de ce fond.
+    const surfaceMode = chartAutoMode(raw);
+    if (surfaceMode !== raw.resolvedMode) {
+      const st = MODE_PRESETS.color[surfaceMode].tokens;
+      vars["--lq-color-panel"] = st.panel;
+      vars["--lq-color-text"] = st.text;
+      vars["--lq-color-text-muted"] = st.muted;
+      vars["--lq-color-border"] = st.border;
+      vars["--lq-color-border-subtle"] = st.borderSubtle;
+      vars["--lq-color-hover"] = st.hover;
+      vars.color = st.text;
+    }
   }
   if (style.backgroundColor) {
     // Texte lisible sur ce fond pour la légende et les en-têtes de panneaux (voir ChartSettingsDialog.css).

@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { resolveThemedDeep } from "../../forms/themedColor";
 
 /** Style d'un trait réglable (grille, réticule, ligne du dernier prix). */
 export type ChartLineStyle = "solid" | "dashed" | "dotted";
@@ -187,6 +188,9 @@ export interface ChartStyleSettings {
   modeColors?: { light?: ChartModeColors; dark?: ChartModeColors };
   /** @internal Jetons de surface du mode imposé (calculés, jamais enregistrés). */
   surfaceTokens?: ChartSurfaceTokens;
+  /** @internal Mode affiché (calculé par `resolveChartStyle`, jamais enregistré) : celui où se résolvent les couleurs
+   *  jour / nuit (`light-dark(…)`) au dessin. */
+  resolvedMode?: ChartColorMode;
 }
 
 /** Visibilité d'un groupe de boutons du graphique. */
@@ -327,12 +331,14 @@ export function resolveChartStyle(raw: ChartStyleSettings, host: ChartColorMode,
   const rest: ChartStyleSettings = { ...raw };
   delete rest.modeColors;
   delete rest.surfaceTokens;
+  delete rest.resolvedMode;
   const forced = raw.colorMode !== undefined && raw.colorMode !== host ? MODE_PRESETS[palette][mode] : undefined;
   const bucket: ChartModeColors = { ...raw.modeColors?.[mode] };
   delete bucket.upColor;
   delete bucket.downColor;
   const style: ChartStyleSettings = withoutUndefined({ ...forced?.style, ...rest, ...bucket });
   if (forced) style.surfaceTokens = forced.tokens;
+  style.resolvedMode = mode;
   const hasModeColors = Object.keys(raw.modeColors?.[mode] ?? {}).length > 0 || MODE_COLOR_KEYS.some((k) => rest[k] !== undefined);
   STYLE_META.set(style, { raw, mode, host, hasModeColors });
   return style;
@@ -374,7 +380,7 @@ export function storeChartStyle(raw: ChartStyleSettings, next: ChartStyleSetting
   const mode = raw.colorMode ?? host;
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(next)) {
-    if (value === undefined || key === "surfaceTokens" || key === "modeColors" || MODE_COLOR_KEY_SET.has(key)) continue;
+    if (value === undefined || key === "surfaceTokens" || key === "resolvedMode" || key === "modeColors" || MODE_COLOR_KEY_SET.has(key)) continue;
     out[key] = value;
   }
   const changed = MODE_COLOR_KEYS.filter((k) => next[k] !== current[k]);
@@ -383,9 +389,16 @@ export function storeChartStyle(raw: ChartStyleSettings, next: ChartStyleSetting
   if (changed.length > 0) {
     const migrated = migrateLegacyColors(raw.modeColors, legacy);
     legacy = {};
-    const bucket: Record<string, unknown> = { ...migrated[mode] };
-    for (const k of changed) bucket[k] = next[k];
-    buckets = { ...migrated, [mode]: bucket as ChartModeColors };
+    // Une couleur changée vaut pour les deux modes : c'est la couleur elle-même qui dit si elle diffère entre le jour
+    // et la nuit (« Jour / nuit » ou « Auto » du sélecteur, écrite light-dark(…)). `mode` reste celui qui est affiché.
+    const light: Record<string, unknown> = { ...migrated.light };
+    const dark: Record<string, unknown> = { ...migrated.dark };
+    for (const k of changed) {
+      light[k] = next[k];
+      dark[k] = next[k];
+    }
+    void mode;
+    buckets = { light: light as ChartModeColors, dark: dark as ChartModeColors };
   }
   Object.assign(out, legacy);
   const cleaned = cleanBuckets(buckets);
@@ -405,7 +418,9 @@ export function storeModeCandleColor(
   const out: ChartStyleSettings = { ...raw };
   for (const k of MODE_COLOR_KEYS) delete out[k];
   const migrated = migrateLegacyColors(raw.modeColors, withoutUndefined({ ...legacyColorsOf(raw), ...legacyCandles }));
-  const cleaned = cleanBuckets({ ...migrated, [mode]: { ...migrated[mode], [key]: color } });
+  // Même règle que storeChartStyle : la couleur choisie vaut pour les deux modes (light-dark(…) pour les distinguer).
+  void mode;
+  const cleaned = cleanBuckets({ light: { ...migrated.light, [key]: color }, dark: { ...migrated.dark, [key]: color } });
   if (cleaned) out.modeColors = cleaned;
   else delete out.modeColors;
   return out;
@@ -429,6 +444,7 @@ export function templateStyle(style: ChartStyleSettings): ChartStyleSettings {
   delete out.colorMode;
   delete out.modeColors;
   delete out.surfaceTokens;
+  delete out.resolvedMode;
   return out;
 }
 
@@ -524,8 +540,12 @@ export function lineDash(style: ChartLineStyle | undefined, fallback: number[]):
 
 /** Variables CSS et fond posés sur la zone du graphique : texte et lignes des échelles (lus par ChartAxis.css),
  *  fond uni ou dégradé, séparateurs des colonnes d'axe. Vide quand rien n'est réglé. */
-export function chartStyleCssVars(style: ChartStyleSettings): CSSProperties {
+export function chartStyleCssVars(raw: ChartStyleSettings): CSSProperties {
+  // Couleurs jour / nuit résolues dans le mode affiché (les variables CSS sont lues aussi par le canvas).
+  const style = raw.resolvedMode ? resolveThemedDeep(raw, raw.resolvedMode) : raw;
   const vars: Record<string, string> = {};
+  // Les couleurs light-dark(…) restées dans le HTML du graphique (légende, étiquettes) suivent ce mode.
+  if (raw.resolvedMode) vars.colorScheme = raw.resolvedMode;
   if (style.scaleTextColor) vars["--lq-chart-axis-color"] = style.scaleTextColor;
   if (style.scaleTextSize) vars["--lq-chart-axis-size"] = `${style.scaleTextSize}px`;
   if (style.scaleLineColor) vars["--lq-chart-domain-color"] = style.scaleLineColor;

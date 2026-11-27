@@ -1,3 +1,4 @@
+import { resolveThemedDeep } from "../../../forms/themedColor";
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
 import { HOVER_PARAM_KEYS, renderCandlestickChart, renderCrosshair } from "../render/renderChart";
@@ -29,7 +30,11 @@ const HOVER_KEYS = new Set<string>(HOVER_PARAM_KEYS);
  *  `params`' own keys are a fixed set (RenderCandlestickChartParams' own shape never changes
  *  between renders), so the value lists below are same-length arrays every call — valid (if
  *  eslint-illegible) dependency lists covering every one of their fields at once. */
-export function useRenderCandlestickChart({ canvasRef, crosshairCanvasRef, wrapperRef, themeTick, ...params }: UseRenderCandlestickChartArgs) {
+export function useRenderCandlestickChart({ canvasRef, crosshairCanvasRef, wrapperRef, themeTick, ...rawParams }: UseRenderCandlestickChartArgs) {
+  // Couleurs jour / nuit (light-dark(…), voir forms/themedColor) remplacées par celles du mode affiché : le canvas
+  // ne sait pas les lire. Chaque valeur garde son identité si elle n'en contient pas (dépendances stables).
+  const themedMode = rawParams.chartStyle?.resolvedMode ?? "light";
+  const params = Object.fromEntries(Object.entries(rawParams).map(([k, v]) => [k, resolveThemedDeep(v, themedMode)])) as typeof rawParams;
   const styleRef = useRef<ChartCanvasStyle | null>(null);
   // Couleurs du thème lues sur le DOM une fois par thème, pas à chaque image : relire les variables
   // CSS forçait un recalcul de style de la page à chaque repeint — en plein glisser, à chaque image.

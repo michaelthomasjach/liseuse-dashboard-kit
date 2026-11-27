@@ -1,3 +1,4 @@
+import { ThemedColorContext } from "../forms/themedColor";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ChartTemplateSnapshot } from "./candlestick/interfaces/ChartTemplate.interface";
 import { createPortal } from "react-dom";
@@ -486,6 +487,7 @@ function CandlestickChartBody({
   });
   // Réglages avancés appliqués (sans la personnalisation avancée de l'offre, ceux de la Toile sont ignorés).
   const appliedStyle = useMemo(() => effectiveChartStyle(chartStyle, advancedAppearance), [chartStyle, advancedAppearance]);
+  const themedColorContext = useMemo(() => ({ mode: chartStyle.resolvedMode ?? ("light" as const) }), [chartStyle.resolvedMode]);
   // Swaps the whole chart body for SeasonalityView — its own flag, not folded into
   // `chartDisplayMode`: its x-axis shares no meaningful relationship with candle/line/Renko's.
   const [seasonalityOpen, setSeasonalityOpen] = useState(false);
@@ -2717,6 +2719,8 @@ function CandlestickChartBody({
       style={{ width: isFullscreen ? undefined : width }}
     >
       {/* Boutons « ? » des indicateurs : page d'aide de l'application, sinon fenêtre intégrée. */}
+      {/* Sélecteurs de couleur du graphique : choix « Identique / Jour et nuit / Auto », mode affiché connu. */}
+      <ThemedColorContext.Provider value={themedColorContext}>
       <IndicatorHelpProvider onOpenIndicatorHelp={onOpenIndicatorHelp}>
       <div ref={mainRef} className="lq-chart__main">
       {showHeader && !seasonalityOpen && (
@@ -3581,6 +3585,7 @@ function CandlestickChartBody({
         return aiPortalTarget && aiView === "docked" ? createPortal(aiHost, aiPortalTarget) : aiHost;
       })()}
       </IndicatorHelpProvider>
+      </ThemedColorContext.Provider>
     </div>
   );
 }

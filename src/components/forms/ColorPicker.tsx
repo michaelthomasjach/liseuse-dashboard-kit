@@ -4,6 +4,7 @@ import { useFocusTrap } from "../../internal/useFocusTrap";
 import { CheckIcon, ChevronDownIcon, CloseIcon, PencilIcon, PlusIcon, StarIcon, TrashIcon } from "../icons";
 import { formatHex, hsvaToRgba, normalizeColor, parseColor, parseHexInput, rgbaToHsva, type HsvaColor, type RgbaColor } from "./colorUtils";
 import { MAX_SET_COLORS, pushRecentColor, useColorPreferences, type ColorSet } from "./ColorPreferences";
+import { autoThemedColor, formatThemedColor, isThemedColor, parseThemedColor, resolveThemedColor, useThemedColorContext, type ThemedColor, type ThemedColorMode } from "./themedColor";
 import "./ColorPicker.css";
 
 const GRAYS = ["#ffffff", "#e6e6e6", "#cccccc", "#b3b3b3", "#999999", "#808080", "#666666", "#4d4d4d", "#333333", "#000000"];
@@ -24,7 +25,47 @@ const DEFAULT_THICKNESS_OPTIONS = [1, 2, 3, 4];
 
 /** Fond d'un aperçu : la couleur par-dessus un damier, qui montre la transparence. */
 export function colorSwatchBackground(color: string): string {
-  return `linear-gradient(${color}, ${color}), repeating-conic-gradient(#c8c8c8 0 25%, #ffffff 0 50%) 0 0 / 8px 8px`;
+  const checker = "repeating-conic-gradient(#c8c8c8 0 25%, #ffffff 0 50%) 0 0 / 8px 8px";
+  if (isThemedColor(color)) {
+    const t = parseThemedColor(color);
+    // Une couleur par mode : la pastille coupée en diagonale, jour en haut à gauche, nuit en bas à droite.
+    if (t.kind === "modes") return `linear-gradient(135deg, ${t.light} 0 50%, ${t.dark} 50% 100%), ${checker}`;
+    if (t.kind === "auto") return `linear-gradient(135deg, ${t.light} 0 50%, ${t.dark} 50% 100%), ${checker}`;
+  }
+  return `linear-gradient(${color}, ${color}), ${checker}`;
+}
+
+const MODE_LABEL: Record<ThemedColorMode, string> = { light: "Jour", dark: "Nuit" };
+
+/** Le choix « Identique / Jour et nuit / Auto » en tête du panneau, et l'onglet du mode édité (Jour, Nuit). */
+function ThemedColorRow({ themed, side, onSide, onKind }: { themed: ThemedColor; side: ThemedColorMode; onSide: (m: ThemedColorMode) => void; onKind: (k: ThemedColor["kind"]) => void }) {
+  const kinds: { kind: ThemedColor["kind"]; label: string; title: string }[] = [
+    { kind: "same", label: "Identique", title: "La même couleur en mode jour et en mode nuit" },
+    { kind: "modes", label: "Jour / nuit", title: "Une couleur pour le mode jour, une autre pour le mode nuit" },
+    { kind: "auto", label: "Auto", title: "Éclaircie ou assombrie automatiquement si elle manque de contraste avec le fond du mode" },
+  ];
+  return (
+    <div className="lq-color-picker__modes">
+      <div className="lq-color-picker__mode-kinds" role="radiogroup" aria-label="Couleur selon le mode jour / nuit">
+        {kinds.map((k) => (
+          <button key={k.kind} type="button" role="radio" aria-checked={themed.kind === k.kind} className={themed.kind === k.kind ? "is-active" : undefined} title={k.title} onClick={() => onKind(k.kind)}>
+            {k.label}
+          </button>
+        ))}
+      </div>
+      {themed.kind === "modes" && (
+        <div className="lq-color-picker__mode-sides" role="tablist" aria-label="Mode édité">
+          {(["light", "dark"] as const).map((m) => (
+            <button key={m} type="button" role="tab" aria-selected={side === m} className={side === m ? "is-active" : undefined} onClick={() => onSide(m)}>
+              <span className="lq-color-picker__mode-swatch" style={{ background: colorSwatchBackground(m === "light" ? themed.light : themed.dark) }} aria-hidden="true" />
+              {MODE_LABEL[m]}
+            </button>
+          ))}
+        </div>
+      )}
+      {themed.kind === "auto" && <p className="lq-color-picker__mode-hint">Ajustée automatiquement pour rester lisible en mode jour comme en mode nuit.</p>}
+    </div>
+  );
 }
 
 interface EyeDropperCtor {
@@ -93,8 +134,28 @@ export function ColorPicker({
   const anchorRef = useRef<HTMLButtonElement>(null);
   const { preferences, update } = useColorPreferences();
   const openedWith = useRef<string | null>(null);
-  const valueRef = useRef(value);
-  valueRef.current = value;
+  // Graphique (contexte présent) : la couleur peut dépendre du mode jour / nuit. Le panneau édite toujours une couleur
+  // simple, celle du mode choisi, réécrite ensuite dans la valeur (light-dark(…), auto(…)).
+  const themedCtx = useThemedColorContext();
+  const themed = parseThemedColor(value);
+  const [side, setSide] = useState<ThemedColorMode>(themedCtx?.mode ?? "light");
+  // « Auto » : on édite la couleur du mode affiché, l'autre est recalculée.
+  const editedSide: ThemedColorMode = themed.kind === "auto" ? (themedCtx?.mode ?? "light") : side;
+  const plainValue = themed.kind === "same" ? themed.color : editedSide === "dark" ? themed.dark : themed.light;
+  const emitPlain = (c: string) => {
+    if (themed.kind === "modes") onChange(formatThemedColor({ ...themed, [side]: c }));
+    else if (themed.kind === "auto") onChange(autoThemedColor(c));
+    else onChange(c);
+  };
+  const setKind = (kind: ThemedColor["kind"]) => {
+    if (kind === themed.kind) return;
+    const base = plainValue || "#000000";
+    if (kind === "modes") onChange(formatThemedColor({ kind: "modes", light: base, dark: base }));
+    else if (kind === "auto") onChange(autoThemedColor(base));
+    else onChange(base);
+  };
+  const valueRef = useRef(plainValue);
+  valueRef.current = plainValue;
 
   // La couleur entre dans les récentes à la fermeture, si elle a changé (pas à chaque pas d'un glissé).
   const commitRecent = useCallback(() => {
@@ -111,6 +172,8 @@ export function ColorPicker({
   useEffect(() => () => commitRecent(), [commitRecent]);
 
   const shown = value || "#000000";
+  // Couleur affichée dans ce mode (titre, data-color) : celle qui est réellement dessinée.
+  const shownPlain = isThemedColor(shown) ? resolveThemedColor(shown, themedCtx?.mode ?? "light") : shown;
   // Sans aria-label : le libellé affiché juste avant la pastille (« Couleur », « Fond stop »…) la nomme.
   const [autoLabel, setAutoLabel] = useState<string | undefined>();
   useLayoutEffect(() => {
@@ -131,16 +194,16 @@ export function ColorPicker({
         className={[children ? "lq-color-picker lq-color-picker--content" : className ? "lq-color-picker" : "lq-color-picker lq-color-picker__swatch", className].filter(Boolean).join(" ")}
         style={triggerStyle}
         disabled={disabled}
-        title={title ?? shown}
+        title={title ?? (themed.kind === "modes" ? `Jour ${themed.light} · Nuit ${themed.dark}` : themed.kind === "auto" ? `Auto : jour ${themed.light} · nuit ${themed.dark}` : shown)}
         aria-label={label}
         aria-labelledby={ariaLabelledBy}
         aria-haspopup="dialog"
         aria-expanded={open}
-        data-color={shown}
+        data-color={shownPlain}
         onClick={() => {
           if (open) close();
           else {
-            openedWith.current = value;
+            openedWith.current = plainValue;
             setOpen(true);
           }
         }}
@@ -151,8 +214,9 @@ export function ColorPicker({
       {open && (
         <ColorPickerPanel
           anchorRef={anchorRef}
-          value={shown}
-          onChange={onChange}
+          value={plainValue || "#000000"}
+          onChange={emitPlain}
+          modeRow={themedCtx ? <ThemedColorRow themed={themed} side={side} onSide={setSide} onKind={setKind} /> : null}
           alpha={alpha}
           palette={palette}
           onClose={close}
@@ -181,11 +245,13 @@ interface PanelProps {
   thickness?: number;
   onThicknessChange?: (w: number) => void;
   thicknessOptions: number[];
+  /** Choix jour / nuit (graphique), en tête du panneau. */
+  modeRow?: ReactNode;
 }
 
 const stop = (e: SyntheticEvent) => e.stopPropagation();
 
-function ColorPickerPanel({ anchorRef, value, onChange, alpha, palette, onClose, preferences, update, label, thickness, onThicknessChange, thicknessOptions }: PanelProps) {
+function ColorPickerPanel({ anchorRef, value, onChange, alpha, palette, onClose, preferences, update, label, thickness, onThicknessChange, thicknessOptions, modeRow }: PanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(panelRef, true);
   const [customOpen, setCustomOpen] = useState(false);
@@ -253,6 +319,7 @@ function ColorPickerPanel({ anchorRef, value, onChange, alpha, palette, onClose,
           if (e.key !== "Escape") e.stopPropagation();
         }}
       >
+        {modeRow}
         {activeSet && (
           <div className="lq-color-picker__heading">
             <span className="lq-color-picker__set-title">{activeSet.name}</span>

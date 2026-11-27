@@ -108,3 +108,5 @@ export {
 export type { ColorPreferences, ColorSet, ColorPreferencesProviderProps, ColorPreferencesApi } from "./ColorPreferences";
 export { parseColor, formatHex, normalizeColor, colorAlpha, withAlpha } from "./colorUtils";
 export type { RgbaColor, HsvaColor } from "./colorUtils";
+export { ThemedColorContext, autoContrastColor, autoThemedColor, formatThemedColor, isThemedColor, parseThemedColor, resolveThemedColor, resolveThemedDeep } from "./themedColor";
+export type { ThemedColor, ThemedColorMode } from "./themedColor";

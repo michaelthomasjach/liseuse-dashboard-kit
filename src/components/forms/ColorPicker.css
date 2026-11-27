@@ -517,3 +517,40 @@
 .lq-root[data-lq-palette="eink"] .lq-color-picker__grid-swatch:hover {
   transform: none;
 }
+
+/* Couleur selon le mode jour / nuit (graphique) : Identique, Jour / nuit, Auto, puis l'onglet du mode édité. */
+.lq-color-picker__modes { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.lq-color-picker__mode-kinds,
+.lq-color-picker__mode-sides {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--lq-color-text, #111) 6%, transparent);
+}
+.lq-color-picker__mode-kinds > button,
+.lq-color-picker__mode-sides > button {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--lq-color-text-muted, #666);
+  font: inherit;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.lq-color-picker__mode-kinds > button.is-active,
+.lq-color-picker__mode-sides > button.is-active {
+  background: var(--lq-color-panel, var(--lq-color-bg, #fff));
+  color: var(--lq-color-text, #111);
+  font-weight: 600;
+}
+.lq-color-picker__mode-swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.lq-color-picker__mode-hint { margin: 0; font-size: 0.72rem; line-height: 1.35; color: var(--lq-color-text-muted, #666); }

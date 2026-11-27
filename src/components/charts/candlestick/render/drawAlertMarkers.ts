@@ -16,17 +16,25 @@ export function drawingLevelAtIndex(dr: TrendLineDrawing, indexOf: (d: Date) => 
   return dr.y1 + ((dr.y2 - dr.y1) * (atIndex - i1)) / (i2 - i1);
 }
 
-/** Petite cloche (16 px) centrée en (cx, cy). */
-function bellPath(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
+/** Cloche (corps et battant) centrée exactement en (cx, cy), à l'échelle `s` : dessinée de -6 à +6 en hauteur. */
+function drawBell(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(s, s);
   ctx.beginPath();
-  ctx.moveTo(cx - 5, cy + 3);
-  ctx.lineTo(cx - 4, cy + 1.5);
-  ctx.lineTo(cx - 4, cy - 1.5);
-  ctx.bezierCurveTo(cx - 4, cy - 5, cx - 2, cy - 6, cx, cy - 6);
-  ctx.bezierCurveTo(cx + 2, cy - 6, cx + 4, cy - 5, cx + 4, cy - 1.5);
-  ctx.lineTo(cx + 4, cy + 1.5);
-  ctx.lineTo(cx + 5, cy + 3);
+  ctx.moveTo(-5, 2.6);
+  ctx.lineTo(-4, 1.1);
+  ctx.lineTo(-4, -1.9);
+  ctx.bezierCurveTo(-4, -5.4, -2, -6, 0, -6);
+  ctx.bezierCurveTo(2, -6, 4, -5.4, 4, -1.9);
+  ctx.lineTo(4, 1.1);
+  ctx.lineTo(5, 2.6);
   ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(0, 4.4, 1.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 /**
@@ -67,11 +75,8 @@ export function drawAlertMarkers(ctx: CanvasRenderingContext2D, params: RenderCa
     ctx.strokeStyle = color;
     ctx.stroke();
     ctx.fillStyle = color;
-    bellPath(ctx, cx, cy - 0.5);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(cx, cy + 4, 1.4, 0, Math.PI * 2);
-    ctx.fill();
+    // Un peu plus petite que le cercle, centrée sur les deux axes.
+    drawBell(ctx, cx, cy, 0.72);
     ctx.restore();
   }
 }

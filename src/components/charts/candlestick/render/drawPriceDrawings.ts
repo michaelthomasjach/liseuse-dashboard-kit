@@ -1057,9 +1057,10 @@ function drawTimeframeLabels(
     const text = labelOf(dr.timeframe);
     const w = ctx.measureText(text).width + 8;
     const h = 14;
-    // Au-dessus et à gauche du point d'ancrage, gardé dans le panneau.
+    // Au-dessus et à gauche du point d'ancrage, le bas de l'étiquette posé sur la ligne (moitié de son épaisseur
+    // au-dessus du centre du trait), gardé dans le panneau.
     const bx = Math.max(0, Math.min(dims.boundedWidth - w, x - w - 4));
-    const by = Math.max(0, Math.min(priceHeight - h, y - h - 4));
+    const by = Math.max(0, Math.min(priceHeight - h, y - h - (dr.strokeWidth ?? 1.5) / 2));
     if (!Number.isFinite(bx) || !Number.isFinite(by)) continue;
     ctx.globalAlpha = 0.85;
     ctx.fillStyle = dr.color ?? style.colorAccent;

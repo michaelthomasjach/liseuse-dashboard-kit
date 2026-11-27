@@ -776,6 +776,9 @@ export interface CandlestickChartProps {
    *  vers `onRangeAsk` s'il est fourni, sinon vers l'assistant du graphique (`ai`), qui s'ouvre. Désactivé par défaut ;
    *  sans `onRangeAsk` ni transport d'assistant, le bouton n'apparaît pas. */
   rangeAsk?: boolean;
+  /** Boutons de l'application dans la barre d'outils de gauche, juste sous l'outil Texte : une bascule chacun (allumée :
+   *  `active`). Ex. masquer une ligne posée par l'application. */
+  railToggles?: ChartRailToggle[];
   /** Reçoit la question posée sur une zone (voir `rangeAsk`) à la place de l'assistant du graphique. */
   onRangeAsk?: (request: ChartRangeAskRequest) => void;
   /** Question à poser à l'assistant du graphique dès qu'elle arrive (un nouvel `id` la pose) : `ChartWorkspace` y fait
@@ -853,4 +856,13 @@ export interface CandlestickChartProps {
   margin?: Partial<ChartMargin>;
   /** Extra CSS class on the root element, so the host app can style the chart without patching the library. */
   className?: string;
+}
+
+/** Bouton bascule de l'application dans la barre d'outils (voir `railToggles`). */
+export interface ChartRailToggle {
+  id: string;
+  label: string;
+  icon: import("react").ReactNode;
+  active: boolean;
+  onToggle: () => void;
 }

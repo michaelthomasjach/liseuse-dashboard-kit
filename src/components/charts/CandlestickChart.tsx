@@ -305,7 +305,7 @@ function CandlestickChartBody({
   fillHeight = false,
   layout = "auto",
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
-  scripts, onScriptsChange, onScriptAlert, quantData, ai, aiOpen: aiOpenProp, onAiOpenChange, aiPortalTarget, rangeAsk = false, onRangeAsk, aiPrompt, onAiPromptHandled, onEditScript: onEditScriptProp, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
+  scripts, onScriptsChange, onScriptAlert, quantData, ai, aiOpen: aiOpenProp, onAiOpenChange, aiPortalTarget, rangeAsk = false, railToggles, onRangeAsk, aiPrompt, onAiPromptHandled, onEditScript: onEditScriptProp, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
   emptyLabel,
   notice,
   margin,
@@ -2702,6 +2702,7 @@ function CandlestickChartBody({
       aiOpen={ai && !aiControlled ? aiOpen : undefined}
       setAiOpen={ai && !aiControlled ? setAiOpen : undefined}
       rangeAsk={rangeAskEnabled}
+      railToggles={railToggles}
       onOpenToolInfo={setInfoTool}
       workspaceFullscreen={workspaceFullscreen}
       onToggleWorkspaceFullscreen={isMobileRail ? onToggleWorkspaceFullscreen : undefined}

@@ -1,3 +1,4 @@
+import type { ChartRailToggle } from "../interfaces/CandlestickChartProps.interface";
 import { Fragment, useRef, useState } from "react";
 import type { ChartCustomTool } from "../interfaces/ChartCustomTool.interface";
 import type { RefObject, Dispatch, SetStateAction } from "react";
@@ -70,6 +71,8 @@ export interface ToolsRailProps {
   setAiOpen: ((open: boolean) => void) | undefined;
   /** Outil « Interroger l'IA sur une zone » (voir `CandlestickChartProps.rangeAsk`) : bouton absent sans lui. */
   rangeAsk?: boolean;
+  /** Voir `CandlestickChartProps.railToggles`. */
+  railToggles?: ChartRailToggle[];
   setMarketStateOpen: Dispatch<SetStateAction<boolean>>;
   onOpenToolInfo: (tool: DrawingToolType) => void;
   /** See `CandlestickChartProps.workspaceFullscreen`. */
@@ -136,6 +139,7 @@ export function ToolsRail({
   aiOpen,
   setAiOpen,
   rangeAsk = false,
+  railToggles,
   setMarketStateOpen,
   onOpenToolInfo,
   workspaceFullscreen = false,
@@ -328,6 +332,20 @@ export function ToolsRail({
                 </>
               )}
               </div>
+              {category.id === "textNotes" &&
+                railToggles?.map((tg) => (
+                  <button
+                    key={tg.id}
+                    type="button"
+                    className={["lq-chart__icon-button", tg.active && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+                    onClick={tg.onToggle}
+                    aria-pressed={tg.active}
+                    aria-label={tg.label}
+                    title={tg.label}
+                  >
+                    {tg.icon}
+                  </button>
+                ))}
             </Fragment>
           );
         })}

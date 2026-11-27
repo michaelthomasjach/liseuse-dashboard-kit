@@ -6,7 +6,7 @@ export type { BarChartProps, BarDatum } from "./BarChart";
 
 export { CandlestickChart } from "./CandlestickChart";
 // Case « Notifier sur mon téléphone » de la fenêtre d'alerte (prop `alertPhoneNotification`).
-export type { AlertPhoneNotificationOption } from "./candlestick/interfaces/CandlestickChartProps.interface";
+export type { AlertPhoneNotificationOption, ChartRailToggle } from "./candlestick/interfaces/CandlestickChartProps.interface";
 export type {
   CandlestickChartProps,
   Candle,

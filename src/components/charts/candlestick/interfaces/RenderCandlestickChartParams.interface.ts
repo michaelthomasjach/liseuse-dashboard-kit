@@ -129,6 +129,9 @@ export interface RenderCandlestickChartParams {
   /** Réglages de la fenêtre des paramètres (grilles, réticule, mèches, ligne du dernier prix…) — voir
    *  `ChartStyleSettings`. Absent : rendu par défaut. */
   chartStyle?: ChartStyleSettings;
+  /** Alertes à signaler d'une cloche contre l'axe des prix : dessins qui en portent une, et niveaux des alertes de prix
+   *  posées sans dessin (voir drawAlertMarkers.ts). */
+  alertMarkers?: { drawingIds: string[]; priceLevels: number[] };
   /** Positions des dates de l'axe du temps, pour la grille verticale. */
   dateTickValues?: number[];
 }

@@ -878,6 +878,14 @@ function CandlestickChartBody({
     plotBottom: dims.margin.bottom,
   });
   const alertFlow = useAlertFlow(alerts ?? [], selectedDrawingId);
+  // Cloches des alertes sur le graphique : dessins concernés, et niveaux des alertes de prix sans dessin.
+  const alertMarkers = useMemo(() => {
+    const list = alerts ?? [];
+    return {
+      drawingIds: [...new Set(list.flatMap((a) => (a.drawingId ? [a.drawingId] : [])))],
+      priceLevels: list.flatMap((a) => (!a.drawingId && a.conditionIndicatorId === "price" && typeof a.value === "number" ? [a.value] : [])),
+    };
+  }, [alerts]);
 
   // A strategy's panes and overlays belong to its tester: closing the panel takes them off the
   // chart with it, reopening brings them back. Derived from the very prefixes the fills already
@@ -1827,6 +1835,7 @@ function CandlestickChartBody({
     volumeUpColorOverride,
     volumeDownColorOverride,
     chartStyle: appliedStyle,
+    alertMarkers,
     dateTickValues,
     volumeVisible,
     volumeCollapsed,

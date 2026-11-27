@@ -28,6 +28,7 @@ import { drawHeadShouldersDrawings } from "./drawHeadShoulders";
 import { drawCupHandleDrawings } from "./drawCupHandle";
 import { drawDoubleTripleBottomDrawings } from "./drawDoubleTripleBottom";
 import { drawPatternTargets } from "./drawPatternTargets";
+import { drawAlertMarkers } from "./drawAlertMarkers";
 import { drawLongShortPositionDrawings } from "./drawLongShortPosition";
 import { drawTextAndCommentDrawings } from "./drawTextAndComment";
 import { drawNoteDrawings } from "./drawNote";
@@ -583,6 +584,8 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     drawDoubleTripleBottomDrawings(ctx, params, style);
     // Objectif théorique des figures chartistes qui le demandent, par-dessus la figure.
     drawPatternTargets(ctx, params, style);
+    // Cloche contre l'axe des prix au-dessus de chaque ligne qui porte une alerte.
+    drawAlertMarkers(ctx, params, style);
 
     // L'outil Mesurer (armé depuis la barre ou au raccourci Maj + clic) montre son résultat en direct,
     // rectangle et encart chiffré compris, au lieu d'un simple trait jusqu'au pointeur.

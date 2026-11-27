@@ -386,12 +386,12 @@ export function buildChartContextMenu({
     ...(!inSubPane && openSymbolSettings
       ? [{ label: `Paramètres du graphique ${symbolTarget}…`, onSelect: openSymbolSettings, target: onPrice }]
       : []),
-    ...(!inSubPane ? [{ label: "Paramètres système…", onSelect: openSettings, target: onChart }] : []),
+    // Paramètres système : sur tous les panneaux (prix, volume, indicateur), toujours. Sur un panneau, après un filet :
+    // sinon l'entrée se rangerait avec « Supprimer le panneau ».
+    ...(inSubPane ? [{ separator: true } as ChartContextMenuItem] : []),
+    { label: "Paramètres système…", onSelect: openSettings, target: onChart },
     // Sur la zone des prix comme sur un panneau : tous les raccourcis du graphique et de l'espace de travail.
-    // Sur un panneau, après un filet : sinon l'entrée se rangerait avec « Supprimer le panneau ».
-    ...(openShortcuts
-      ? [...(inSubPane ? [{ separator: true } as ChartContextMenuItem] : []), { label: "Voir les raccourcis…", onSelect: openShortcuts, target: onChart }]
-      : []),
+    ...(openShortcuts ? [{ label: "Voir les raccourcis…", onSelect: openShortcuts, target: onChart }] : []),
   ];
   if (!anchor.axis) return items;
   // Clic droit sur un axe : son propre menu, comme sur une plateforme de marché — la couleur de ses étiquettes, l'échelle

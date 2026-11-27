@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useDragToDismiss } from "./useDragToDismiss";
 import type { ChartWorkspaceWatchlist } from "./ChartWorkspaceWatchlist.interface";
 
-export type ChartWorkspaceSidePanelTab = "watchlist" | "alerts";
+/** Onglet du panneau de droite : listes, alertes, ou un panneau de l'application (`app:<id>`, voir `ChartWorkspaceProps.appPanels`). */
+export type ChartWorkspaceSidePanelTab = "watchlist" | "alerts" | `app:${string}`;
 
 export interface UseWorkspaceSidePanelStateArgs {
   watchlists?: ChartWorkspaceWatchlist[];

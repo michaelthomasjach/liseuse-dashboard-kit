@@ -96,6 +96,15 @@ const EMPTY_BROKER_ADAPTERS: BrokerAdapter[] = [];
  *  in this component. */
 const WORKSPACE_TOUR_SEEN_KEY = "lq-workspace-tour-seen";
 
+/** Un panneau de l'application dans le panneau de droite de l'espace de travail (voir `ChartWorkspaceProps.appPanels`). */
+export interface ChartWorkspaceAppPanel {
+  id: string;
+  label: string;
+  icon: import("react").ReactNode;
+  content: import("react").ReactNode;
+  badge?: number;
+}
+
 export interface ChartWorkspaceProps {
   /** Uncontrolled initial panel count, for a caller that only cares how many panels there are —
    *  the grid is that count's default layout (`DEFAULT_GRID_LAYOUT_BY_PANELS`): 1 is a plain single
@@ -190,6 +199,10 @@ export interface ChartWorkspaceProps {
   onToolBridge?: (bridge: import("./candlestick/ai/chartToolBridge").ChartToolBridge | null) => void;
   /** Boutons de l'application dans le rail de droite, juste au-dessus de l'aide (ex. une connexion MCP). */
   railActions?: WorkspaceRailAction[];
+  /** Panneaux de l'application dans le panneau de droite (ex. une discussion en direct) : un bouton chacun dans le rail,
+   *  juste au-dessus de l'appareil photo (sur téléphone, dans la barre du haut du panneau). `content` est rendu sous
+   *  un en-tête portant `label` ; `badge` : un nombre sur le bouton (messages non lus…). */
+  appPanels?: ChartWorkspaceAppPanel[];
   /** Boutons de l'application tout en bas du rail de droite, sous l'aide (ex. une croix qui ferme le graphique). */
   railBottomActions?: WorkspaceRailAction[];
   watchlists?: ChartWorkspaceWatchlist[];
@@ -399,6 +412,7 @@ function ChartWorkspaceBody({
   loadingLabel,
   onToolBridge,
   railActions,
+  appPanels,
   railBottomActions,
   watchlists,
   defaultActiveWatchlistId,
@@ -673,6 +687,8 @@ function ChartWorkspaceBody({
     layout === "auto" ? viewportWidth > 0 && viewportWidth < MOBILE_LAYOUT_BREAKPOINT : layout === "mobile";
   const hasWatchlists = !!watchlists && watchlists.length > 0;
   const hasAlerts = alerts !== undefined;
+  // Un panneau de droite à montrer : listes, alertes ou un panneau de l'application.
+  const hasSidePanel = hasWatchlists || hasAlerts || (appPanels?.length ?? 0) > 0;
   // Passage en mise en page mobile (fenêtre rétrécie) : le panneau de droite (listes, alertes) se ferme, il couvrirait
   // le graphique ; revenu sur grand écran, il se rouvre s'il a été fermé ainsi. Ni l'un ni l'autre n'est enregistré
   // comme un choix de l'utilisateur.
@@ -1123,7 +1139,7 @@ function ChartWorkspaceBody({
           exists while you're looking at one. Anywhere else they're 40px of permanent overhead
           answering nothing, and the details page in particular already has a header of its own
           naming where you are and how to get back. */}
-      {isMobileWorkspace && sidePanelState.open && mobileProfileTicker === null && (hasWatchlists || hasAlerts) && (
+      {isMobileWorkspace && sidePanelState.open && mobileProfileTicker === null && hasSidePanel && (
         <div className="lq-chart-workspace__mobile-topbar">
           {watchlists?.map((w) => (
             <button
@@ -1171,6 +1187,18 @@ function ChartWorkspaceBody({
               <AlarmClockIcon size={16} />
             </button>
           )}
+          {appPanels?.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={["lq-chart__icon-button", sidePanelState.open && activeTab === `app:${p.id}` && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+              onClick={() => toggleTab(`app:${p.id}`)}
+              aria-label={p.label}
+              title={p.label}
+            >
+              {p.icon}
+            </button>
+          ))}
         </div>
       )}
       <div className="lq-chart-workspace__row">
@@ -1430,7 +1458,7 @@ function ChartWorkspaceBody({
           `CandlestickChartProps.aiPortalTarget`), au lieu de la seule hauteur de la première fenêtre. */}
       {ai && !isMobileWorkspace && <div ref={setAiSlot} className="lq-chart-workspace__ai-slot" />}
 
-      {(hasWatchlists || hasAlerts) && sidePanelState.open && (
+      {hasSidePanel && sidePanelState.open && (
         <ChartSidePanel
           panelRef={sidePanelState.panelRef}
           widthPx={sidePanelState.widthPx}
@@ -1438,7 +1466,15 @@ function ChartWorkspaceBody({
           fullscreen={isMobileWorkspace}
         >
           {(() => {
-            const topContent =
+            const appPanel = appPanels?.find((p) => `app:${p.id}` === activeTab);
+            const topContent = appPanel ? (
+              <div className="lq-chart-workspace__app-panel">
+                <div className="lq-chart-workspace__side-panel-header">
+                  <span className="lq-chart-workspace__side-panel-title">{appPanel.label}</span>
+                </div>
+                <div className="lq-chart-workspace__app-panel-body">{appPanel.content}</div>
+              </div>
+            ) :
               activeTab === "watchlist" && hasWatchlists ? (
                 <WatchlistPanel
                   watchlists={watchlists!}
@@ -1568,7 +1604,7 @@ function ChartWorkspaceBody({
             // the two (see useSymbolProfileSplit's own doc). Falls back to the plain unsplit
             // layout when there's no resolvable symbol at all (e.g. every panel's own `symbol` is
             // unset) — a bottom half with nothing to show isn't worth the divider.
-            if (!currentProfileSymbol) return topContent;
+            if (!currentProfileSymbol || appPanel) return topContent;
             return (
               <div className="lq-chart-workspace__side-split">
                 <div className="lq-chart-workspace__side-split-top">{topContent}</div>
@@ -1657,6 +1693,7 @@ function ChartWorkspaceBody({
           showFullscreenButton={fullscreenButton}
           onCapture={(action) => void captureFrontPanel(action)}
           actions={railActions}
+          appPanels={appPanels?.map(({ id, label, icon, badge }) => ({ id, label, icon, ...(badge !== undefined ? { badge } : {}) }))}
           bottomActions={railBottomActions}
           onOpenHelp={() => {
             setHelpTab("features");
@@ -1677,7 +1714,7 @@ function ChartWorkspaceBody({
           Last child of the workspace column, so it sits under the row and stays put while the row
           above it scrolls — no `position: fixed`, which would escape a workspace embedded in a
           taller page and pin itself to the viewport instead. */}
-      {isMobileWorkspace && (hasWatchlists || hasAlerts) && (
+      {isMobileWorkspace && hasSidePanel && (
         <div className="lq-chart-workspace__mobile-bottomnav">
           <button
             type="button"

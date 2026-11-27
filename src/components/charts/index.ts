@@ -63,6 +63,7 @@ export type {
   ChartWorkspaceWatchlistColumn,
   ChartWorkspaceWatchlistRow,
   ChartWorkspaceSidePanelTab,
+  ChartWorkspaceAppPanel,
   ChartWorkspaceGridArea,
   ChartWorkspaceGridLayout,
   ChartWorkspaceGridLayoutId,

@@ -39,6 +39,8 @@ export interface WorkspaceSideRailProps {
   onCapture?: (action: ChartCaptureActionKind) => void;
   /** Boutons de l'application, juste au-dessus de l'aide. */
   actions?: WorkspaceRailAction[];
+  /** Panneaux de l'application (ex. discussion) : un bouton chacun, juste au-dessus de l'appareil photo. */
+  appPanels?: { id: string; label: string; icon: ReactNode; badge?: number }[];
   /** Boutons de l'application tout en bas du rail, sous l'aide (ex. fermer le graphique). */
   bottomActions?: WorkspaceRailAction[];
   onOpenHelp: () => void;
@@ -66,6 +68,7 @@ export function WorkspaceSideRail({
   showFullscreenButton = true,
   onCapture,
   actions,
+  appPanels,
   bottomActions,
   onOpenHelp,
 }: WorkspaceSideRailProps) {
@@ -157,6 +160,25 @@ export function WorkspaceSideRail({
           {workspaceFullscreen ? <MinimizeIcon size={16} /> : <MaximizeIcon size={16} />}
         </button>
       )}
+      {/* Panneaux de l'application (discussion…) : ouverts dans le panneau de droite, comme les listes et les alertes. */}
+      {appPanels?.map((p) => {
+        const tab = `app:${p.id}` as const;
+        const on = panelOpen && activeTab === tab;
+        return (
+          <button
+            key={p.id}
+            type="button"
+            className={["lq-chart__icon-button lq-chart-workspace__app-panel-button", on && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+            onClick={() => onToggleTab(tab)}
+            aria-label={p.badge ? `${p.label} (${p.badge} nouveau${p.badge > 1 ? "x" : ""})` : p.label}
+            aria-pressed={on}
+            title={p.label}
+          >
+            {p.icon}
+            {p.badge ? <span className="lq-chart-workspace__rail-badge" aria-hidden="true">{p.badge > 99 ? "99+" : p.badge}</span> : null}
+          </button>
+        );
+      })}
       {/* Capture du graphique au premier plan — un seul bouton pour l'espace de travail, comme le plein écran,
           plutôt qu'un dans l'en-tête de chaque graphique. */}
       {onCapture && (

@@ -614,7 +614,10 @@ export function chartStyleCssVars(raw: ChartStyleSettings): CSSProperties {
   }
   if (style.backgroundColor) {
     // Texte lisible sur ce fond pour la légende et les en-têtes de panneaux (voir ChartSettingsDialog.css).
-    const dark = isDarkColor(style.backgroundType === "gradient" && style.backgroundColor2 ? mixHex(style.backgroundColor, style.backgroundColor2) : style.backgroundColor);
+    // Le fond réellement affiché (opacité comprise, posé sur le fond du mode) : une toile blanche translucide en mode
+    // nuit reste claire, une toile très transparente prend la teinte du site.
+    const surface = raw.resolvedMode ? chartAutoMode(raw) : null;
+    const dark = surface ? surface === "dark" : isDarkColor(style.backgroundType === "gradient" && style.backgroundColor2 ? mixHex(style.backgroundColor, style.backgroundColor2) : style.backgroundColor);
     vars["--lq-chart-on-bg-text"] = dark ? "#e8e8e8" : "#1d1d1d";
     vars["--lq-chart-on-bg-muted"] = dark ? "#a3a3a3" : "#666666";
     vars.background =

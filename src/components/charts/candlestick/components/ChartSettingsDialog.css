@@ -386,7 +386,10 @@
   stroke-width: var(--lq-chart-pane-separator-width, 2px);
 }
 
-/* Fond personnalisé : la légende et les en-têtes de panneaux passent sur une couleur de texte lisible sur ce fond. */
+/* Fond personnalisé : tous les textes du graphique (légende, en-têtes de panneaux, chiffres des évènements, étiquettes)
+   passent par défaut sur une couleur lisible sur ce fond, comme une couleur « Auto ». Une couleur réglée à la main
+   (axes, étiquettes) garde la sienne. */
+.lq-chart__plot[data-lq-custom-bg],
 .lq-chart__plot[data-lq-custom-bg] .lq-chart__plot-topleft,
 .lq-chart__plot[data-lq-custom-bg] .lq-chart__pane-header {
   --lq-color-text: var(--lq-chart-on-bg-text);
@@ -493,3 +496,6 @@
     display: none;
   }
 }
+
+/* Chiffre sous une pile d'évènements : lisible sur le fond réellement affiché. */
+.lq-chart__plot[data-lq-custom-bg] .lq-chart__event-marker-count { fill: var(--lq-chart-on-bg-muted, var(--lq-color-text-muted)); }

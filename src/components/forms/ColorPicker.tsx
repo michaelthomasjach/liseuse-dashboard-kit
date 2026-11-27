@@ -142,12 +142,16 @@ export function ColorPicker({
   // « Auto » : on édite la couleur du mode affiché, l'autre est recalculée.
   const editedSide: ThemedColorMode = themed.kind === "auto" ? (themedCtx?.mode ?? "light") : side;
   const plainValue = themed.kind === "same" ? themed.color : editedSide === "dark" ? themed.dark : themed.light;
+  // Par défaut, une couleur choisie dans un graphique est « Auto » : lisible en jour comme en nuit. « Identique »
+  // choisi à la main garde la couleur telle quelle dans les deux modes.
+  const [keepSame, setKeepSame] = useState(false);
   const emitPlain = (c: string) => {
     if (themed.kind === "modes") onChange(formatThemedColor({ ...themed, [side]: c }));
-    else if (themed.kind === "auto") onChange(autoThemedColor(c));
+    else if (themed.kind === "auto" || (themedCtx && !keepSame)) onChange(autoThemedColor(c));
     else onChange(c);
   };
   const setKind = (kind: ThemedColor["kind"]) => {
+    setKeepSame(kind === "same");
     if (kind === themed.kind) return;
     const base = plainValue || "#000000";
     if (kind === "modes") onChange(formatThemedColor({ kind: "modes", light: base, dark: base }));

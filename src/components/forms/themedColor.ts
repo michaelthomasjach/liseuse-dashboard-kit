@@ -118,14 +118,61 @@ export function autoContrastColor(color: string, mode: ThemedColorMode): string 
   return formatHex({ r, g, b, a: c.a });
 }
 
-/** La couleur à dessiner dans le mode. Une couleur simple est rendue telle quelle. */
-export function resolveThemedColor(value: string, mode: ThemedColorMode): string {
+/**
+ * La couleur à dessiner dans le mode. Une couleur simple est rendue telle quelle. `autoMode` : le mode où se
+ * résolvent les couleurs « Auto », celui du fond réellement affiché (une toile blanche en mode nuit est un fond clair :
+ * l'« Auto » doit y être sombre). Par défaut le mode lui-même.
+ */
+export function resolveThemedColor(value: string, mode: ThemedColorMode, autoMode: ThemedColorMode = mode): string {
   if (!isThemedColor(value)) return value;
   const t = parseThemedColor(value);
-  return t.kind === "same" ? t.color : mode === "dark" ? t.dark : t.light;
+  if (t.kind === "same") return t.color;
+  const m = t.kind === "auto" ? autoMode : mode;
+  return m === "dark" ? t.dark : t.light;
 }
 
-const DEEP_CACHE: Record<ThemedColorMode, WeakMap<object, unknown>> = { light: new WeakMap(), dark: new WeakMap() };
+/** Rapport de contraste WCAG entre deux couleurs (1 à 21) ; 21 si l'une ne se lit pas. */
+export function contrastRatio(a: string, b: string): number {
+  const ca = parseColor(a);
+  const cb = parseColor(b);
+  if (!ca || !cb) return 21;
+  const la = luminance(ca.r, ca.g, ca.b);
+  const lb = luminance(cb.r, cb.g, cb.b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/** Le mode (clair ou sombre) d'un fond, d'après sa luminance. */
+export function surfaceModeOf(bg: string): ThemedColorMode | undefined {
+  const c = parseColor(bg);
+  if (!c) return undefined;
+  return luminance(c.r, c.g, c.b) > 0.36 ? "light" : "dark";
+}
+
+/** `fg` posé à l'opacité `alpha` (0 à 1) sur `bg`, en hexadécimal opaque. */
+export function blendColors(fg: string, bg: string, alpha: number): string {
+  const f = parseColor(fg);
+  const b = parseColor(bg);
+  if (!f) return bg;
+  if (!b) return fg;
+  const a = Math.max(0, Math.min(1, alpha * f.a));
+  const mix = (x: number, y: number) => Math.round(x * a + y * (1 - a));
+  return formatHex({ r: mix(f.r, b.r), g: mix(f.g, b.g), b: mix(f.b, b.b), a: 1 });
+}
+
+/**
+ * Une couleur du thème (accent, texte) lisible sur le fond réellement affiché : inchangée si elle contraste assez,
+ * sinon sa luminosité est inversée (teinte gardée). Un accent blanc du thème nuit devient sombre sur une toile blanche.
+ */
+export function readableOn(color: string, bg: string, min = 2): string {
+  if (contrastRatio(color, bg) >= min) return color;
+  const c = parseColor(color);
+  if (!c) return color;
+  const [r, g, b] = invertLightness(c.r, c.g, c.b);
+  const inverted = formatHex({ r, g, b, a: c.a });
+  return contrastRatio(inverted, bg) > contrastRatio(color, bg) ? inverted : color;
+}
+
+const DEEP_CACHE = new Map<string, WeakMap<object, unknown>>();
 
 /** Au-delà, un tableau est une série de données (bougies, valeurs d'indicateur) : jamais de couleur dedans. */
 const MAX_WALKED_ARRAY = 400;
@@ -135,19 +182,21 @@ const MAX_WALKED_ARRAY = 400;
  * contient aucune, et garde le résultat en cache par objet : appelé à chaque rendu, il ne recrée rien tant que rien
  * ne change. Les dates, fonctions, Map/Set et longs tableaux de données ne sont pas parcourus.
  */
-export function resolveThemedDeep<T>(value: T, mode: ThemedColorMode): T {
-  if (typeof value === "string") return (isThemedColor(value) ? resolveThemedColor(value, mode) : value) as T;
+export function resolveThemedDeep<T>(value: T, mode: ThemedColorMode, autoMode: ThemedColorMode = mode): T {
+  if (typeof value === "string") return (isThemedColor(value) ? resolveThemedColor(value, mode, autoMode) : value) as T;
   if (value === null || typeof value !== "object") return value;
   const obj = value as unknown as object;
   if (obj instanceof Date || obj instanceof Map || obj instanceof Set || ArrayBuffer.isView(obj)) return value;
-  const cache = DEEP_CACHE[mode];
+  const cacheKey = `${mode}|${autoMode}`;
+  let cache = DEEP_CACHE.get(cacheKey);
+  if (!cache) DEEP_CACHE.set(cacheKey, (cache = new WeakMap()));
   if (cache.has(obj)) return cache.get(obj) as T;
   let out: unknown = value;
   if (Array.isArray(obj)) {
     if (obj.length <= MAX_WALKED_ARRAY) {
       let copy: unknown[] | null = null;
       for (let i = 0; i < obj.length; i++) {
-        const next = resolveThemedDeep(obj[i], mode);
+        const next = resolveThemedDeep(obj[i], mode, autoMode);
         if (next !== obj[i]) {
           copy ??= obj.slice();
           copy[i] = next;
@@ -160,7 +209,7 @@ export function resolveThemedDeep<T>(value: T, mode: ThemedColorMode): T {
     if (proto === Object.prototype || proto === null) {
       let copy: Record<string, unknown> | null = null;
       for (const [k, v] of Object.entries(obj)) {
-        const next = resolveThemedDeep(v, mode);
+        const next = resolveThemedDeep(v, mode, autoMode);
         if (next !== v) {
           copy ??= { ...(obj as Record<string, unknown>) };
           copy[k] = next;

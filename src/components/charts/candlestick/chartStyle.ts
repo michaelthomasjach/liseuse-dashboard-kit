@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { resolveThemedDeep } from "../../forms/themedColor";
+import { blendColors, resolveThemedColor, resolveThemedDeep, surfaceModeOf, type ThemedColorMode } from "../../forms/themedColor";
 
 /** Style d'un trait réglable (grille, réticule, ligne du dernier prix). */
 export type ChartLineStyle = "solid" | "dashed" | "dotted";
@@ -538,11 +538,37 @@ export function lineDash(style: ChartLineStyle | undefined, fallback: number[]):
   return fallback;
 }
 
+/** Fond par défaut de chaque mode, sous une toile translucide (le site derrière). */
+const MODE_BACKDROP: Record<ChartColorMode, string> = { light: "#ffffff", dark: "#0f1420" };
+
+/**
+ * Le fond réellement affiché sous les courbes : la couleur de la toile (résolue dans le mode), posée à son opacité sur
+ * le fond du mode ; `undefined` sans couleur de toile réglée (le fond du thème, qui suit déjà le mode).
+ */
+export function chartSurfaceColor(style: ChartStyleSettings, backdrop?: string): string | undefined {
+  const mode: ChartColorMode = style.resolvedMode ?? "light";
+  if (!style.backgroundColor) return undefined;
+  const bg = resolveThemedColor(style.backgroundColor, mode);
+  const bg2 = style.backgroundType === "gradient" && style.backgroundColor2 ? resolveThemedColor(style.backgroundColor2, mode) : undefined;
+  const base = backdrop || MODE_BACKDROP[mode];
+  const top = blendColors(bg, base, Math.max(0, Math.min(100, style.backgroundOpacity ?? 100)) / 100);
+  if (!bg2) return top;
+  return blendColors(blendColors(bg2, base, Math.max(0, Math.min(100, style.backgroundOpacity ?? 100)) / 100), top, 0.5);
+}
+
+/** Le mode où se résolvent les couleurs « Auto » : celui du fond réellement affiché (une toile blanche en mode nuit
+ *  est claire), sinon le mode du graphique. */
+export function chartAutoMode(style: ChartStyleSettings | undefined): ThemedColorMode {
+  const mode: ChartColorMode = style?.resolvedMode ?? "light";
+  const surface = style ? chartSurfaceColor(style) : undefined;
+  return (surface && surfaceModeOf(surface)) || mode;
+}
+
 /** Variables CSS et fond posés sur la zone du graphique : texte et lignes des échelles (lus par ChartAxis.css),
  *  fond uni ou dégradé, séparateurs des colonnes d'axe. Vide quand rien n'est réglé. */
 export function chartStyleCssVars(raw: ChartStyleSettings): CSSProperties {
   // Couleurs jour / nuit résolues dans le mode affiché (les variables CSS sont lues aussi par le canvas).
-  const style = raw.resolvedMode ? resolveThemedDeep(raw, raw.resolvedMode) : raw;
+  const style = raw.resolvedMode ? resolveThemedDeep(raw, raw.resolvedMode, chartAutoMode(raw)) : raw;
   const vars: Record<string, string> = {};
   // Les couleurs light-dark(…) restées dans le HTML du graphique (légende, étiquettes) suivent ce mode.
   if (raw.resolvedMode) vars.colorScheme = raw.resolvedMode;

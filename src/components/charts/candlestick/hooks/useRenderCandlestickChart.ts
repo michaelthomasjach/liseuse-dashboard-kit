@@ -1,4 +1,5 @@
 import { resolveThemedDeep } from "../../../forms/themedColor";
+import { chartAutoMode } from "../chartStyle";
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
 import { HOVER_PARAM_KEYS, renderCandlestickChart, renderCrosshair } from "../render/renderChart";
@@ -33,8 +34,10 @@ const HOVER_KEYS = new Set<string>(HOVER_PARAM_KEYS);
 export function useRenderCandlestickChart({ canvasRef, crosshairCanvasRef, wrapperRef, themeTick, ...rawParams }: UseRenderCandlestickChartArgs) {
   // Couleurs jour / nuit (light-dark(…), voir forms/themedColor) remplacées par celles du mode affiché : le canvas
   // ne sait pas les lire. Chaque valeur garde son identité si elle n'en contient pas (dépendances stables).
+  // Les couleurs « Auto » suivent le fond réellement affiché (toile réglée comprise), pas seulement le mode.
   const themedMode = rawParams.chartStyle?.resolvedMode ?? "light";
-  const params = Object.fromEntries(Object.entries(rawParams).map(([k, v]) => [k, resolveThemedDeep(v, themedMode)])) as typeof rawParams;
+  const autoMode = chartAutoMode(rawParams.chartStyle);
+  const params = Object.fromEntries(Object.entries(rawParams).map(([k, v]) => [k, resolveThemedDeep(v, themedMode, autoMode)])) as typeof rawParams;
   const styleRef = useRef<ChartCanvasStyle | null>(null);
   // Couleurs du thème lues sur le DOM une fois par thème, pas à chaque image : relire les variables
   // CSS forçait un recalcul de style de la page à chaque repeint — en plein glisser, à chaque image.

@@ -1,5 +1,6 @@
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
-import { lineDash, type ChartStyleSettings } from "../chartStyle";
+import { chartSurfaceColor, lineDash, type ChartStyleSettings } from "../chartStyle";
+import { readableOn } from "../../../forms/themedColor";
 
 /** Lit une fois, sur le DOM, les couleurs et réglages de dessin du canvas (un canvas n'a aucune
  *  liaison vivante avec les propriétés CSS). Partagé par le graphique principal et la colonne des
@@ -42,17 +43,29 @@ export function readChartCanvasStyle(wrapper: HTMLElement, upColorOverride?: str
 export function applyChartStyle(style: ChartCanvasStyle, chartStyle: ChartStyleSettings | undefined): ChartCanvasStyle {
   if (!chartStyle || Object.keys(chartStyle).length === 0) return style;
   const s = chartStyle;
+  // Mode jour / nuit imposé, différent de celui du site : les couleurs de texte et de grille de ce mode.
+  const themed = s.surfaceTokens ? { colorText: s.surfaceTokens.text, colorMuted: s.surfaceTokens.muted, colorGrid: s.surfaceTokens.borderSubtle, colorAccent: s.surfaceTokens.accent } : {};
+  // Toile d'une couleur réglée (blanche en mode nuit, par exemple) : l'accent (ligne de clôture par défaut, dessins),
+  // le texte et le gris du thème restent lisibles dessus, éclaircis ou assombris au besoin.
+  const surface = chartSurfaceColor(s, style.colorBg);
+  const readable = surface
+    ? {
+        colorText: readableOn(themed.colorText ?? style.colorText, surface, 3),
+        colorMuted: readableOn(themed.colorMuted ?? style.colorMuted, surface, 2),
+        colorAccent: readableOn(themed.colorAccent ?? style.colorAccent, surface, 2),
+      }
+    : {};
   return {
     ...style,
     colorBg: s.backgroundColor ?? style.colorBg,
-    // Mode jour / nuit imposé, différent de celui du site : les couleurs de texte et de grille de ce mode.
-    ...(s.surfaceTokens ? { colorText: s.surfaceTokens.text, colorMuted: s.surfaceTokens.muted, colorGrid: s.surfaceTokens.borderSubtle, colorAccent: s.surfaceTokens.accent } : {}),
+    ...themed,
+    ...readable,
     chartTypes: {
       ha: { up: s.haUpColor, down: s.haDownColor, borderUp: s.haBorderUpColor, borderDown: s.haBorderDownColor, wickUp: s.haWickUpColor, wickDown: s.haWickDownColor },
       bar: { up: s.barUpColor, down: s.barDownColor, width: s.barWidth },
       line: {
         color: s.lineColor,
-        strokeGradient: s.lineGradient ? { top: s.lineTopColor ?? s.lineColor ?? style.colorAccent, bottom: s.lineBottomColor ?? s.lineColor ?? style.colorAccent } : undefined,
+        strokeGradient: s.lineGradient ? { top: s.lineTopColor ?? s.lineColor ?? readable.colorAccent ?? style.colorAccent, bottom: s.lineBottomColor ?? s.lineColor ?? readable.colorAccent ?? style.colorAccent } : undefined,
         width: s.lineWidth,
         dash: s.lineStyle ? lineDash(s.lineStyle, []) : undefined,
         fill: s.lineFill,

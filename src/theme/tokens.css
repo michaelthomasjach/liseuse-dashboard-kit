@@ -497,3 +497,10 @@
   outline: none !important;
   box-shadow: none !important;
 }
+
+/* Champs de saisie : aucun contour au clic (ni anneau de focus, ni liseré noir). Le curseur qui clignote et le fond
+   du champ suffisent à montrer où l'on écrit ; les boutons, cases et liens gardent leur anneau au clavier. Plus
+   spécifique que les anneaux génériques (`:focus-visible` des thèmes et des applications). */
+:is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="button"], [type="submit"], [type="reset"], [type="file"]), textarea, select, [contenteditable="true"]):is(:focus, :focus-visible) {
+  outline: none;
+}

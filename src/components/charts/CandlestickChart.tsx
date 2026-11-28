@@ -26,7 +26,7 @@ import { useStrategyPanelState } from "./candlestick/hooks/useStrategyPanelState
 import { useAiChartContext } from "./candlestick/ai/useAiChartContext";
 import { useAiAssistant } from "./candlestick/ai/useAiAssistant";
 import { RangeAskOverlay } from "./candlestick/components/RangeAskOverlay";
-import { buildRangeAskRequest, orderedRange } from "./candlestick/rangeAsk";
+import { buildRangeAskRequest, clampRangeToCandles, lastClosedCandleIndex, orderedRange } from "./candlestick/rangeAsk";
 import type { ChartRangeAsk, ChartRangeAskKind } from "./candlestick/interfaces/ChartRangeAsk.interface";
 import { AiHost, type AiView } from "./candlestick/ai/components/AiHost";
 import { ChartWatermark } from "./candlestick/components/ChartWatermark";
@@ -624,8 +624,9 @@ function CandlestickChartBody({
       priceVisible: priceAxisShown,
       panesVisible: paneAxesShown,
       timeVisible: timeAxisShown,
+      separator: appliedStyle.priceAxisSeparatorVisible === true,
     }),
-    [yAxisOnLeft, yAxisWidth, dims.boundedWidth, priceAxisShown, paneAxesShown, timeAxisShown],
+    [yAxisOnLeft, yAxisWidth, dims.boundedWidth, priceAxisShown, paneAxesShown, timeAxisShown, appliedStyle.priceAxisSeparatorVisible],
   );
   // Le rail d'outils garde sa largeur quand l'échelle des prix passe à gauche (elle se loge entre lui et le tracé).
   const railDims: ChartDimensions = useMemo(
@@ -1699,7 +1700,8 @@ function CandlestickChartBody({
     handleOverlayPointerUp,
     selectionBox,
   } = useDrawingInteractions({
-    onRangePicked: (a: Date, b: Date) => setAskRange(orderedRange(a, b)),
+    // Zone bornée aux bougies existantes et closes (ni futur, ni bougie en formation, ni avant la première bougie).
+    onRangePicked: (a: Date, b: Date) => setAskRange(clampRangeToCandles(orderedRange(a, b), data, lastCandleOpen)),
     openIndicatorSettings,
     openVolumeSettings: () => setVolumeSettingsOpen(true),
     dblClickTargetRef,
@@ -1883,6 +1885,7 @@ function CandlestickChartBody({
     candleColors,
     candleIcons,
     indexForDate,
+    rangeAskMaxIndex: activeTool === "rangeAsk" ? lastClosedCandleIndex(data, lastCandleOpen) : undefined,
     futureZoneVisible,
     pastZoneVisible,
     replayArmed: replayState.armed,
@@ -2020,7 +2023,7 @@ function CandlestickChartBody({
     },
     alerts: alerts ?? [], onCreateAlert, onUpdateAlert, onDeleteAlert,
     isFullscreen, toggleFullscreen: () => toggleFullscreen(), symbolInfoHidden, setSymbolInfoHidden, marketStateOpen, setMarketStateOpen,
-    rangeAsk: askRange, setRangeAsk: setAskRange, rangeAskEnabled: rangeAsk && (onRangeAsk !== undefined || Boolean(ai?.send || ai?.apiKey)),
+    rangeAsk: askRange, setRangeAsk: (r: ChartRangeAsk | null) => setAskRange(r && clampRangeToCandles(r, data, lastCandleOpen)), rangeAskEnabled: rangeAsk && (onRangeAsk !== undefined || Boolean(ai?.send || ai?.apiKey)),
     undo: () => historyRef.current.undo(), redo: () => historyRef.current.redo(),
     openSystemSettings: () => setSettingsOpen(true), openSymbolSettings: () => setPriceSettingsOpen(true), openVolumeSettings: () => setVolumeSettingsOpen(true),
     openDaySeparators: () => setDaySeparatorsSettingsOpen(true), openIndicatorSettings,
@@ -2187,7 +2190,7 @@ function CandlestickChartBody({
     if (askRange === null) return;
     // Valeurs des indicateurs affichés (non masqués), jointes à la demande comme données de la zone.
     const indicators = indicatorValues.filter(({ indicator }) => !indicator.hidden).map(({ indicator, values }) => ({ label: indicatorLabel(indicator), values }));
-    const request = buildRangeAskRequest({ kind, question, range: askRange, data, symbol: symbolName ?? symbol, timeframe, formatDate: dFmt, indicators });
+    const request = buildRangeAskRequest({ kind, question, range: askRange, data, symbol: symbolName ?? symbol, timeframe, formatDate: dFmt, indicators, lastCandleOpen });
     if (onRangeAsk) onRangeAsk(request);
     else {
       setAiOpen(true);
@@ -3263,6 +3266,7 @@ function CandlestickChartBody({
             width={dims.boundedWidth}
             height={plotBoundedHeight}
             formatDate={dFmt}
+            maxIndex={lastClosedCandleIndex(data, lastCandleOpen)}
           />
         )}
         <CustomToolbarsLayer {...customToolbars.layerProps} plotWidth={dims.boundedWidth} plotLeft={dims.margin.left} plotBottom={dims.margin.bottom} />

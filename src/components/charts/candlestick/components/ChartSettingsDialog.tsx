@@ -752,6 +752,23 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                   aria-label="Couleur et épaisseur des séparateurs de panneaux"
                 />
               </Row>
+              <Row illus="priceAxisSeparator" label="Séparateur de l'axe des prix" hint="Trait vertical entre le graphique et l'échelle des prix">
+                <ColorPicker
+                  value={chartStyle.priceAxisSeparatorColor ?? chartStyle.paneSeparatorColor ?? tc.grid}
+                  onChange={(c) => set({ priceAxisSeparatorColor: c })}
+                  onReset={() => set({ priceAxisSeparatorColor: styleDefaults.priceAxisSeparatorColor })}
+                  thickness={chartStyle.priceAxisSeparatorWidth ?? 1}
+                  thicknessOptions={[1, 2, 3, 4]}
+                  onThicknessChange={(w) => set({ priceAxisSeparatorWidth: w === 1 ? undefined : w })}
+                  disabled={chartStyle.priceAxisSeparatorVisible !== true}
+                  aria-label="Couleur et épaisseur du séparateur de l'axe des prix"
+                />
+                <Checkbox
+                  checked={chartStyle.priceAxisSeparatorVisible === true}
+                  onChange={(v) => set({ priceAxisSeparatorVisible: v ? true : undefined })}
+                  ariaLabel="Séparateur de l'axe des prix"
+                />
+              </Row>
               <Row illus="crosshair" label="Réticule" hint="Style, couleur et épaisseur">
                 {lineStyleSelect(chartStyle.crosshairStyle ?? "dashed", (v) => set({ crosshairStyle: v }), "Style du réticule")}
                 <ColorPicker

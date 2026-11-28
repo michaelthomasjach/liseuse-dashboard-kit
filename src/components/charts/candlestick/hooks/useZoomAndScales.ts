@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 import { useD3Zoom } from "../../internal/useD3Zoom";
 import { useAxisDragRescale } from "../../internal/useAxisDragRescale";
 import { useAxisWheelZoom } from "../../internal/useAxisWheelZoom";
+import { acceptsPlotZoomGesture } from "./plotZoomFilter";
 import type { ChartDimensions } from "../../internal/useChartDimensions";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
@@ -702,25 +703,24 @@ export function useZoomAndScales({
   } = useD3Zoom<SVGRectElement>({
     width: dims.boundedWidth,
     height: plotBoundedHeight,
-    enabled: zoomable && activeTool === null,
+    // Toujours attaché : la molette zoome même quand un outil de dessin est armé (voir `acceptsPlotZoomGesture`, qui
+    // laisse les clics et les glisser à l'outil).
+    enabled: zoomable,
     scaleExtent: [1, maxXZoom],
     onZoom: handleZoom,
-    // Wheel-zoom stays allowed even while `replayArmed` (confirmed bug report: "le scroll out/in
-    // ne fonctionne pas" — zooming in to precisely target a candle before clicking its own cutoff
-    // is exactly when it's most useful) — only a *drag* is rejected then, which is the actual
-    // gesture that would shift the view out from under the hover-preview line while choosing.
     filter: (event: Event) =>
-      (!replayArmed || event.type === "wheel") &&
-      !placementActive &&
-      hoveredDrawingIdRef.current === null &&
-      !measureBodyHoveredRef.current &&
-      // Maj + appui : le raccourci de mesure, ni défilement ni zoom (un dessin survolé est déjà refusé plus haut).
-      !(shiftMeasureEnabled && event.type !== "wheel" && (event as MouseEvent).shiftKey) &&
-      // ⌘ + appui (Mac) : le sélecteur de dessins (Ctrl + appui est déjà refusé par le filtre par défaut de d3-zoom).
-      !(shiftMeasureEnabled && event.type !== "wheel" && (event as MouseEvent).metaKey) &&
-      // d3-zoom avale le double-clic (zoom ×2, propagation arrêtée) : sur un indicateur, il n'atteignait jamais
-      // handleOverlayDoubleClick, qui ouvre ses paramètres.
-      !(event.type === "dblclick" && dblClickTargetRef?.current),
+      acceptsPlotZoomGesture({
+        type: event.type,
+        shiftKey: (event as MouseEvent).shiftKey,
+        metaKey: (event as MouseEvent).metaKey,
+        activeTool,
+        replayArmed,
+        placementActive,
+        drawingHovered: hoveredDrawingIdRef.current !== null,
+        measureHovered: measureBodyHoveredRef.current === true,
+        shiftMeasureEnabled,
+        dblClickOnTarget: Boolean(dblClickTargetRef?.current),
+      }),
     constrain: constrainXPan,
     onUserZoom: suspendReplayFollow,
     // Inertie au relâchement : en X seulement (le Y de la transformation d3-zoom ne sert pas ici, le glisser vertical

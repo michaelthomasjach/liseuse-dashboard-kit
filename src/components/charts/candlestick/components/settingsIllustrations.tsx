@@ -59,6 +59,7 @@ export type SettingIllustrationId =
   | "vertGrid"
   | "horzGrid"
   | "paneSeparators"
+  | "priceAxisSeparator"
   | "crosshair"
   | "watermark"
   | "watermarkSize"
@@ -76,7 +77,7 @@ export type SettingIllustrationId =
   | "integration";
 
 /** Tous les identifiants, dans l'ordre (galerie Storybook). */
-export const ILLUSTRATION_IDS: SettingIllustrationId[] = ["chartType", "pulse", "candleBody", "candleBorder", "candleWick", "haBody", "bars", "barWidth", "lineStroke", "lineColorMode", "lineFill", "lineFillType", "renkoBody", "renkoBorder", "renkoAtr", "lineBreakBody", "lineBreakBorder", "lineBreakLines", "candleColors", "statusLine", "legendSymbol", "legendDescription", "legendOhlc", "legendChange", "legendVolume", "legendIndicatorTitles", "legendIndicatorValues", "priceScaleMode", "autoScale", "priceAxis", "paneAxes", "scalePlacement", "lastPriceLabel", "lastPriceLine", "highLow", "indicatorValues", "countdown", "seriesLabels", "crosshairPriceLabel", "crosshairTimeLabel", "timeAxis", "weekday", "dateFormat", "timeFormat", "touchLayout", "colorMode", "modeColors", "background", "backgroundOpacity", "edgeToEdge", "vertGrid", "horzGrid", "paneSeparators", "crosshair", "watermark", "watermarkSize", "scaleText", "scaleLines", "navigationButtons", "paneButtons", "marginTop", "marginBottom", "marginRight", "resetZoom", "pastZone", "futureZone", "events", "integration"];
+export const ILLUSTRATION_IDS: SettingIllustrationId[] = ["chartType", "pulse", "candleBody", "candleBorder", "candleWick", "haBody", "bars", "barWidth", "lineStroke", "lineColorMode", "lineFill", "lineFillType", "renkoBody", "renkoBorder", "renkoAtr", "lineBreakBody", "lineBreakBorder", "lineBreakLines", "candleColors", "statusLine", "legendSymbol", "legendDescription", "legendOhlc", "legendChange", "legendVolume", "legendIndicatorTitles", "legendIndicatorValues", "priceScaleMode", "autoScale", "priceAxis", "paneAxes", "scalePlacement", "lastPriceLabel", "lastPriceLine", "highLow", "indicatorValues", "countdown", "seriesLabels", "crosshairPriceLabel", "crosshairTimeLabel", "timeAxis", "weekday", "dateFormat", "timeFormat", "touchLayout", "colorMode", "modeColors", "background", "backgroundOpacity", "edgeToEdge", "vertGrid", "horzGrid", "paneSeparators", "priceAxisSeparator", "crosshair", "watermark", "watermarkSize", "scaleText", "scaleLines", "navigationButtons", "paneButtons", "marginTop", "marginBottom", "marginRight", "resetZoom", "pastZone", "futureZone", "events", "integration"];
 
 /** Couleurs choisies par l'utilisateur, reprises par les vignettes (sinon celles du thème). */
 export interface IllustrationColors {
@@ -581,6 +582,17 @@ function draw(id: SettingIllustrationId, col: Required<Pick<IllustrationColors, 
           <g opacity={0.5}>{candles(soft, "none", small.map((k) => ({ ...k, o: k.o * 0.6, c: k.c * 0.6, h: k.h * 0.6, l: k.l * 0.6 })))}</g>
           <line x1={2} x2={70} y1={24} y2={24} stroke={ACCENT} strokeWidth={1.5} />
           <path d="M4 36 C14 30 22 40 34 32 S54 30 68 34" fill="none" stroke={MUTED} strokeWidth={1.25} opacity={0.6} />
+        </>
+      );
+    case "priceAxisSeparator":
+      return (
+        <>
+          <g opacity={0.5}>{candles(soft, "none", small.map((k) => ({ ...k, o: k.o * 0.8, c: k.c * 0.8, h: k.h * 0.8, l: k.l * 0.8 })))}</g>
+          <line x1={54} x2={54} y1={2} y2={42} stroke={ACCENT} strokeWidth={1.5} />
+          {[10, 20, 30].map((y) => (
+            <line key={y} x1={58} x2={68} y1={y} y2={y} stroke={MUTED} strokeWidth={2} opacity={0.5} strokeLinecap="round" />
+          ))}
+          <line x1={2} x2={70} y1={38} y2={38} stroke={MUTED} strokeWidth={1} opacity={0.35} />
         </>
       );
     case "watermark":

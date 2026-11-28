@@ -20,6 +20,9 @@ export interface RangeAskOverlayProps {
   width: number;
   height: number;
   formatDate: (d: Date) => string;
+  /** Index de la dernière bougie close (voir `lastClosedCandleIndex`) : les bords ne vont pas au-delà. Défaut : la
+   *  dernière bougie. */
+  maxIndex?: number;
 }
 
 const MENU_WIDTH = 300;
@@ -47,7 +50,10 @@ export function RangeAskOverlay({
   width,
   height,
   formatDate,
+  maxIndex,
 }: RangeAskOverlayProps) {
+  // Bords bornés aux bougies closes : ni futur à droite de la dernière bougie, ni bougie en formation.
+  const lastIndex = Math.max(0, Math.min(data.length - 1, maxIndex ?? data.length - 1));
   const rootRef = useRef<HTMLDivElement>(null);
   const [question, setQuestion] = useState("");
   const dragRef = useRef<{ edge: "from" | "to"; pointerId: number } | null>(null);
@@ -76,7 +82,7 @@ export function RangeAskOverlay({
   function dateAt(clientX: number): Date {
     const rect = rootRef.current!.getBoundingClientRect();
     const raw = Math.round(zoomedXScale.invert(clientX - rect.left) - 0.5);
-    const i = Math.max(0, Math.min(data.length - 1, raw));
+    const i = Math.max(0, Math.min(lastIndex, raw));
     return data[i].date;
   }
 
@@ -102,7 +108,7 @@ export function RangeAskOverlay({
     if (dragRef.current?.pointerId === e.pointerId) dragRef.current = null;
   }
   function nudge(edge: "from" | "to", step: number) {
-    const i = Math.max(0, Math.min(data.length - 1, indexForDate(range[edge]) + step));
+    const i = Math.max(0, Math.min(lastIndex, indexForDate(range[edge]) + step));
     onRangeChange(orderedRange(edge === "from" ? data[i].date : range.from, edge === "to" ? data[i].date : range.to));
   }
 

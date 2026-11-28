@@ -85,7 +85,8 @@
   padding: var(--lq-space-3);
   display: flex;
   flex-direction: column;
-  gap: var(--lq-space-2);
+  /* Bien de l'air entre une question et sa réponse, et entre deux échanges : on voit d'un coup d'œil qui parle. */
+  gap: 28px;
 }
 
 .lq-ai__intro,
@@ -135,12 +136,10 @@
   max-width: 92%;
 }
 
-/* La réponse : le même fond que la question, assombri, et un filet — on distingue d'un coup d'œil qui parle, sans
-   couleur vive à côté du graphique. Assombri par un voile noir léger posé sur ce fond (pas le texte) : un cran plus foncé en thème clair comme sombre. */
+/* La réponse : une carte au fond légèrement teinté par la couleur du texte (claire en thème clair, sombre en thème
+   sombre), sans bordure ni couleur vive à côté du graphique. */
 .lq-ai__message--assistant {
-  background-color: var(--lq-color-hover);
-  background-image: linear-gradient(rgb(0 0 0 / 8%), rgb(0 0 0 / 8%));
-  border: 1px solid var(--lq-color-border-subtle);
+  background-color: color-mix(in srgb, var(--lq-color-text) 5%, var(--lq-color-panel, transparent));
   color: var(--lq-color-text);
 }
 
@@ -505,24 +504,118 @@
   opacity: 0.4;
   cursor: default;
 }
-.lq-ai__conversation-select {
+/* Conversation affichée : un déclencheur discret (titre + chevron) qui ouvre le menu déroulant du kit (DropdownPanel). */
+.lq-ai__conversation-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   flex: 1 1 auto;
   min-width: 0;
   max-width: 260px;
-  height: 24px;
-  padding: 0 6px;
+  height: 26px;
+  padding: 0 8px 0 10px;
   font: inherit;
   font-size: var(--lq-text-xs);
   color: var(--lq-color-text);
-  background-color: var(--lq-color-panel);
-  border: 1px solid var(--lq-color-border-subtle);
-  border-radius: var(--lq-radius-sm);
-  text-overflow: ellipsis;
+  background-color: color-mix(in srgb, var(--lq-color-text) 6%, transparent);
+  border: none;
+  border-radius: 999px;
   cursor: pointer;
 }
-.lq-ai__conversation-select:focus-visible {
+.lq-ai__conversation-trigger:hover,
+.lq-ai__conversation-trigger--open {
+  background-color: color-mix(in srgb, var(--lq-color-text) 11%, transparent);
+}
+.lq-ai__conversation-trigger:focus-visible {
   outline: 2px solid var(--lq-color-focus-ring);
   outline-offset: 1px;
+}
+.lq-ai__conversation-trigger-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.lq-ai__conversation-trigger svg {
+  flex: none;
+  color: var(--lq-color-text-muted);
+}
+
+/* Liste des conversations : le corps du DropdownPanel garde sa marge intérieure, chaque ligne est arrondie — une ligne
+   survolée ou choisie ne touche jamais les bords de la liste. */
+.lq-ai__conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lq-ai__conversation-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--lq-radius-sm);
+}
+.lq-ai__conversation-row:hover {
+  background-color: var(--lq-color-hover);
+}
+.lq-ai__conversation-row--active {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 12%, transparent);
+  font-weight: var(--lq-font-weight-semibold, 600);
+}
+.lq-ai__conversation-row--active:hover {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 18%, transparent);
+}
+.lq-ai__conversation-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 7px 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  color: var(--lq-color-text);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.lq-ai__conversation-name svg {
+  flex: none;
+  color: var(--lq-color-accent);
+}
+.lq-ai__conversation-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lq-ai__conversation-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-right: 4px;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+.lq-ai__conversation-delete:hover,
+.lq-ai__conversation-delete:focus-visible {
+  color: var(--lq-color-negative, #d64545);
+  background-color: color-mix(in srgb, var(--lq-color-negative, #d64545) 12%, transparent);
+}
+.lq-ai__confirm-text {
+  margin: 0;
+  font-size: var(--lq-text-sm);
+  line-height: 1.5;
+  color: var(--lq-color-text);
 }
 
 /* Avancement d'une question : secondes écoulées et étape. */
@@ -570,10 +663,26 @@
   flex: 1 1 auto;
   padding-top: 3px;
 }
+/* Chaque réponse dans sa carte : panneau arrondi, fond légèrement teinté (sans bordure ni filet de couleur sur un bord),
+   pour qu'elle se détache nettement des questions (bulles foncées à droite). */
 .lq-ai__turn .lq-ai__message--assistant {
-  background: none;
+  background-color: color-mix(in srgb, var(--lq-color-text) 5%, var(--lq-color-panel, transparent));
+  background-image: none;
   border: none;
-  padding: 0;
+  border-radius: var(--lq-radius-lg, 14px);
+  padding: 14px 16px;
+}
+.lq-ai__turn .lq-ai__message--error {
+  background-color: color-mix(in srgb, var(--lq-color-negative, #d64545) 10%, var(--lq-color-panel, transparent));
+}
+/* Réponse coupée par la limite de longueur du modèle : dite sous le texte, jamais coupée en silence. */
+.lq-ai__truncated {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--lq-radius-sm);
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text);
+  background-color: color-mix(in srgb, var(--lq-color-warning, #d97706) 14%, transparent);
 }
 .lq-ai__steps {
   list-style: none;

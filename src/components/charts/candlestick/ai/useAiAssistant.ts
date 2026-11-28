@@ -109,7 +109,14 @@ export const toolStep = (name: string): string => TOOL_STEPS[name] ?? name.repla
 const MAX_CONVERSATIONS = 30;
 const MAX_HISTORY = 40;
 const MAX_TRANSCRIPT = 200;
+/** Texte d'un bloc relu par le modèle dans l'historique (une ancienne demande de zone porte des milliers de chiffres). */
 const MAX_BLOCK_TEXT = 6_000;
+/** Détail d'une étape (résultat d'outil) gardé dans une conversation enregistrée. Les questions et les réponses, elles,
+ *  sont gardées entières : coupées à 6 000 caractères avec « … », une réponse rouverte s'arrêtait au milieu d'un titre
+ *  (« 04. Ce que cela implique pour la suite et… ») ou d'un mot (« porté par l'ou… »). */
+const MAX_STEP_TEXT = 6_000;
+/** Marque d'un texte coupé dans l'historique du modèle ou dans le détail d'une étape : jamais un simple « … ». */
+export const CUT_MARK = " [… coupé]";
 
 /** Titre d'une conversation : le début de sa première question. */
 function titleOf(transcript: AiTranscriptEntry[]): string {
@@ -117,7 +124,12 @@ function titleOf(transcript: AiTranscriptEntry[]): string {
   return first.length > 48 ? `${first.slice(0, 47)}…` : first || "Nouvelle conversation";
 }
 
-const cut = (s: string) => (s.length > MAX_BLOCK_TEXT ? `${s.slice(0, MAX_BLOCK_TEXT)}…` : s);
+const cut = (s: string, max = MAX_BLOCK_TEXT) => (s.length > max ? `${s.slice(0, max)}${CUT_MARK}` : s);
+
+/** Ce qu'une conversation enregistrée garde de l'affichage : questions et réponses entières, étapes bornées. */
+export function savedTranscript(transcript: AiTranscriptEntry[]): AiTranscriptEntry[] {
+  return transcript.slice(-MAX_TRANSCRIPT).map((e) => (e.role === "tool" ? { ...e, text: cut(e.text, MAX_STEP_TEXT) } : e));
+}
 
 /** Un bloc sans son image : une mention la remplace. */
 function dropImage(block: AiContentBlock): AiContentBlock {
@@ -139,7 +151,7 @@ export const IMAGE_NOT_READABLE_NOTE = "(Image de la capture non transmise : ce 
 
 /** Ce qui est gardé d'une conversation : les derniers messages, textes bornés ; elle recommence toujours par une
  *  question (un résultat d'outil sans son appel serait refusé par le modèle). */
-function pruned(history: AiMessage[]): AiMessage[] {
+export function pruned(history: AiMessage[]): AiMessage[] {
   let kept = withoutImages(history).slice(-MAX_HISTORY);
   while (kept.length && !(kept[0].role === "user" && kept[0].content.some((b) => b.type === "text"))) kept = kept.slice(1);
   return kept.map((m) => ({
@@ -158,6 +170,9 @@ export interface AiTranscriptEntry {
   /** `role: "tool"` only — what it was asked to do, and whether it worked. */
   toolName?: string;
   isError?: boolean;
+  /** Réponse coupée par la limite de longueur du modèle (après les relances du serveur) : signalée sous le texte,
+   *  jamais coupée en silence. */
+  truncated?: boolean;
 }
 
 let nextId = 0;
@@ -185,6 +200,9 @@ export interface AiAssistant {
   /** Pendant une question : depuis quand l'assistant travaille, et l'étape en cours (affichées dans le panneau). */
   progress: AiProgress | null;
   selectConversation: (id: string) => void;
+  /** Supprime une conversation enregistrée (la liste enregistrée par l'application suit). Celle affichée laisse place à
+   *  une conversation neuve. */
+  deleteConversation: (id: string) => void;
 }
 
 /** Runs the conversation: sends a turn, executes whatever tools the model asks for, sends the
@@ -238,7 +256,7 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store,
         id: activeId,
         title: titleOf(transcript),
         updatedAt: new Date().toISOString(),
-        transcript: transcript.slice(-MAX_TRANSCRIPT).map((e) => ({ ...e, text: cut(e.text) })),
+        transcript: savedTranscript(transcript),
         history: pruned(historyRef.current),
       };
       const next = [current, ...prev.filter((c) => c.id !== activeId)].slice(0, MAX_CONVERSATIONS);
@@ -268,6 +286,23 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store,
     storeRef.current?.onChange(conversations, fresh);
   }, [stop, conversations]);
 
+  const deleteConversation = useCallback(
+    (id: string) => {
+      const rest = conversations.filter((c) => c.id !== id);
+      if (id !== activeId) {
+        publish(rest, activeId);
+        return;
+      }
+      stop();
+      historyRef.current = [];
+      setTranscript([]);
+      const fresh = makeId();
+      setActiveId(fresh);
+      publish(rest, fresh);
+    },
+    [conversations, activeId, stop, publish],
+  );
+
   const selectConversation = useCallback(
     (id: string) => {
       const c = conversations.find((x) => x.id === id);
@@ -294,7 +329,9 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store,
       dirtyRef.current = true;
 
       setTranscript((prev) => [...prev, { id: makeId(), role: "user", text: display?.trim() || text }]);
-      historyRef.current = [...withoutImages(historyRef.current), { role: "user", content: [{ type: "text", text }] }];
+      // Historique borné avant chaque question (40 messages, textes anciens raccourcis), pas seulement à l'enregistrement :
+      // il grandissait sans fin pendant une session, et le serveur refusait la requête (« Invalid request parameters »).
+      historyRef.current = [...pruned(historyRef.current), { role: "user", content: [{ type: "text", text }] }];
 
       // The manual is only fetched once per session and only when the assistant is actually used —
       // 107KB of prose that a consumer who never opens this panel should not download.
@@ -370,6 +407,10 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store,
           }
 
           if (failed) return;
+          // Toujours coupée par la limite de longueur du modèle : la réponse le dit sous son texte.
+          if (stopReason === "max_tokens" && streamed.trim()) {
+            setTranscript((prev) => prev.map((e) => (e.id === entryId ? { ...e, truncated: true } : e)));
+          }
           if (streamed.trim()) answer.unshift({ type: "text", text: streamed });
           if (answer.length === 0) return;
           historyRef.current = [...historyRef.current, { role: "assistant", content: answer }];
@@ -444,6 +485,7 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store,
     activeConversationId: transcript.length > 0 || conversations.some((c) => c.id === activeId) ? activeId : null,
     newConversation,
     selectConversation,
+    deleteConversation,
     progress,
   };
 }

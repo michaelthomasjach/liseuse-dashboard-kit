@@ -554,6 +554,14 @@
   stroke-width: var(--lq-chart-domain-width, 1);
 }
 
+/* Séparateur de l'axe des prix (réglage « Séparateur de l'axe des prix » de la Toile, désactivé par défaut) : couleur
+   des séparateurs de panneaux si aucune n'est choisie, 1 px par défaut. */
+.lq-chart__price-axis-separator {
+  stroke: var(--lq-chart-price-axis-separator-color, var(--lq-chart-pane-separator-color, var(--lq-color-border-subtle)));
+  stroke-width: var(--lq-chart-price-axis-separator-width, 1px);
+  pointer-events: none;
+}
+
 /* A meaningful reference threshold (e.g. LineAreaChart's own `referenceLineY`, SeasonalityView's
    0% line) — same solid, slightly-darker-than-the-grid treatment as CandlestickChart's own
    compare-mode 0% baseline (see drawPriceCandles.ts), not the dashed .lq-chart__crosshair-line

@@ -47,6 +47,48 @@ export function orderedRange(a: Date, b: Date): ChartRangeAsk {
   return a.getTime() <= b.getTime() ? { from: a, to: b } : { from: b, to: a };
 }
 
+/** Durée d'une bougie : l'écart le plus fréquent entre les dernières bougies (un week-end ou une nuit ne la fausse pas). */
+function barStepMs(data: Candle[]): number {
+  const gaps: number[] = [];
+  for (let i = Math.max(1, data.length - 30); i < data.length; i++) gaps.push(data[i].date.getTime() - data[i - 1].date.getTime());
+  if (!gaps.length) return 0;
+  gaps.sort((a, b) => a - b);
+  return gaps[Math.floor(gaps.length / 2)];
+}
+
+/**
+ * Index de la dernière bougie close, ou -1 sans bougie close. La dernière bougie est encore en formation si le graphique
+ * le dit (`lastCandleOpen`) ou si son heure de clôture (ouverture + durée d'une bougie) n'est pas encore passée.
+ */
+export function lastClosedCandleIndex(data: Candle[], lastCandleOpen = false, now: number = Date.now()): number {
+  const last = data.length - 1;
+  if (last < 0) return -1;
+  const step = barStepMs(data);
+  const forming = lastCandleOpen || (step > 0 && data[last].date.getTime() + step > now);
+  return forming ? last - 1 : last;
+}
+
+/**
+ * Une zone ramenée aux bougies existantes : jamais avant la première bougie chargée, jamais après la dernière bougie
+ * close (ni dans le futur à droite du graphique, ni sur la bougie en formation). Null si rien n'en reste.
+ */
+export function clampRangeToCandles(range: ChartRangeAsk, data: Candle[], lastCandleOpen = false, now: number = Date.now()): ChartRangeAsk | null {
+  const lastIndex = lastClosedCandleIndex(data, lastCandleOpen, now);
+  if (lastIndex < 0) return null;
+  const min = data[0].date.getTime();
+  const max = data[lastIndex].date.getTime();
+  const { from, to } = orderedRange(range.from, range.to);
+  if (from.getTime() > max || to.getTime() < min) {
+    // Zone entière hors des bougies (dans le futur, par exemple) : la bougie la plus proche.
+    const edge = from.getTime() > max ? data[lastIndex].date : data[0].date;
+    return { from: edge, to: edge };
+  }
+  return {
+    from: from.getTime() < min ? data[0].date : from,
+    to: to.getTime() > max ? data[lastIndex].date : to,
+  };
+}
+
 /** Les bougies de la zone, bornes comprises. */
 export function candlesInRange(data: Candle[], range: ChartRangeAsk): Candle[] {
   const from = range.from.getTime();
@@ -198,11 +240,20 @@ export function rangeStructure(data: Candle[], range: ChartRangeAsk, formatDate:
 /** Au-delà, les bougies sont échantillonnées pour que la demande reste courte (la première et la dernière restent). */
 const MAX_PROMPT_CANDLES = 50;
 
-function sample(candles: Candle[]): Candle[] {
-  if (candles.length <= MAX_PROMPT_CANDLES) return candles;
-  const step = (candles.length - 1) / (MAX_PROMPT_CANDLES - 1);
-  return Array.from({ length: MAX_PROMPT_CANDLES }, (_, i) => candles[Math.round(i * step)]);
+function sample(candles: Candle[], max = MAX_PROMPT_CANDLES): Candle[] {
+  if (candles.length <= max) return candles;
+  const step = (candles.length - 1) / (max - 1);
+  return Array.from({ length: max }, (_, i) => candles[Math.round(i * step)]);
 }
+
+/**
+ * Longueur maximale de la demande d'une zone. Le serveur de macro-rates refusait toute la requête au-delà de 20 000
+ * caractères par message (« Invalid request parameters ») : avec 6 indicateurs affichés ou plus, leurs valeurs
+ * suffisaient à dépasser. Au-delà, les indicateurs sont échantillonnés moins finement, puis coupés (signalé).
+ */
+export const MAX_RANGE_PROMPT_CHARS = 18_000;
+/** Échantillonnages des indicateurs essayés tour à tour pour tenir dans `MAX_RANGE_PROMPT_CHARS`. */
+const INDICATOR_POINTS = [MAX_PROMPT_CANDLES, 25, 12, 6];
 
 /** Une valeur d'indicateur en texte : un nombre, ou les champs numériques d'un objet (« macd=1.2 signal=0.8 »). */
 function valueText(v: unknown): string {
@@ -223,11 +274,11 @@ const MAX_PROMPT_INDICATORS = 12;
  * Les indicateurs affichés sur la zone : pour chacun, sa valeur aux mêmes bougies échantillonnées que les cours, puis
  * sa valeur au début et à la fin de la zone, pour que l'IA lise RSI, MACD, moyennes… sans les recalculer.
  */
-export function indicatorLines(data: Candle[], candles: Candle[], indicators: { label: string; values: unknown[] }[]): string[] {
+export function indicatorLines(data: Candle[], candles: Candle[], indicators: { label: string; values: unknown[] }[], points = MAX_PROMPT_CANDLES): string[] {
   if (!indicators.length || !candles.length) return [];
   const indexOf = new Map(data.map((c, i) => [c, i]));
-  const picked = sample(candles);
-  const lines: string[] = ["Indicateurs affichés sur le graphique, aux mêmes bougies — date;valeur :"];
+  const picked = sample(candles, points);
+  const lines: string[] = [points < MAX_PROMPT_CANDLES && candles.length > points ? `Indicateurs affichés sur le graphique, sur ${picked.length} bougies réparties dans la zone — date;valeur :` : "Indicateurs affichés sur le graphique, aux mêmes bougies — date;valeur :"];
   for (const ind of indicators.slice(0, MAX_PROMPT_INDICATORS)) {
     const rows = picked
       .map((c) => {
@@ -254,8 +305,13 @@ export function buildRangeAskRequest(args: {
   formatDate: (d: Date) => string;
   /** Indicateurs affichés et leurs valeurs, alignées sur `data` (une par bougie). */
   indicators?: { label: string; values: unknown[] }[];
+  /** La dernière bougie est encore en formation (voir `clampRangeToCandles`). */
+  lastCandleOpen?: boolean;
+  now?: number;
 }): ChartRangeAskRequest {
-  const { kind, range, data, symbol, timeframe, formatDate } = args;
+  const { kind, data, symbol, timeframe, formatDate } = args;
+  // Bornée aux bougies closes : ni futur, ni bougie en formation, ni avant la première bougie chargée.
+  const range = clampRangeToCandles(args.range, data, args.lastCandleOpen, args.now) ?? args.range;
   const candles = candlesInRange(data, range);
   const label = kind === "custom" ? (args.question ?? "").trim() : RANGE_ASK_OPTIONS.find((o) => o.kind === kind)!.label;
   const stats = rangeStats(candles);
@@ -272,7 +328,24 @@ export function buildRangeAskRequest(args: {
     );
     const rows = sample(candles).map((c) => `${c.date.toISOString()};${num(c.open)};${num(c.high)};${num(c.low)};${num(c.close)}${typeof c.volume === "number" ? `;${Math.round(c.volume)}` : ""}`);
     lines.push(`Bougies${rows.length < candles.length ? ` (${rows.length} sur ${candles.length}, échantillonnées)` : ""} — date;ouverture;haut;bas;clôture;volume :`, ...rows);
-    lines.push(...indicatorLines(data, candles, args.indicators ?? []));
+    const base = lines.join("\n").length;
+    let ind: string[] = [];
+    for (const points of INDICATOR_POINTS) {
+      ind = indicatorLines(data, candles, args.indicators ?? [], points);
+      if (base + ind.join("\n").length + 1 <= MAX_RANGE_PROMPT_CHARS) break;
+    }
+    // Toujours trop long (beaucoup d'indicateurs) : les derniers sont laissés de côté, et la demande le dit.
+    let used = base;
+    const kept: string[] = [];
+    for (const line of ind) {
+      if (used + line.length + 1 > MAX_RANGE_PROMPT_CHARS - 120) {
+        kept.push("(Valeurs des indicateurs suivants omises pour garder la demande courte : lis-les avec decrire_le_graphique si besoin.)");
+        break;
+      }
+      kept.push(line);
+      used += line.length + 1;
+    }
+    lines.push(...kept);
   }
   const summary = `${label}\n(zone du ${formatDate(range.from)} au ${formatDate(range.to)}, ${candles.length} bougie${candles.length > 1 ? "s" : ""})`;
   return { kind, question: label, from: range.from, to: range.to, candles, symbol, timeframe, prompt: lines.join("\n"), summary };

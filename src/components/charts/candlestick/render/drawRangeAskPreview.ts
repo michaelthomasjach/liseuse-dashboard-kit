@@ -9,11 +9,14 @@ export const RANGE_ASK_AI_STOPS = ["#4285f4", "#9b72cb", "#d96570", "#f4b400"];
  * après les panneaux, hors de tout découpage, pour que la pose se voie et se fasse depuis n'importe quel panneau.
  */
 export function drawRangeAskPreview(ctx: CanvasRenderingContext2D, params: RenderCandlestickChartParams) {
-  const { activeTool, pendingPoint, previewPoint, zoomedXScale, indexForDate, dims } = params;
+  const { activeTool, pendingPoint, previewPoint, zoomedXScale, indexForDate, dims, data } = params;
   if (activeTool !== "rangeAsk" || !pendingPoint || !previewPoint) return;
   const height = dims.boundedHeight;
-  const xa = zoomedXScale(indexForDate(pendingPoint.x) + 0.5);
-  const xb = zoomedXScale(indexForDate(previewPoint.x) + 0.5);
+  // La zone s'arrête à la première bougie et à la dernière bougie close, même si le pointeur va au-delà.
+  const maxIndex = Math.min(data.length - 1, params.rangeAskMaxIndex ?? data.length - 1);
+  const clampIndex = (i: number) => Math.max(0, Math.min(maxIndex, i));
+  const xa = zoomedXScale(clampIndex(indexForDate(pendingPoint.x)) + 0.5);
+  const xb = zoomedXScale(clampIndex(indexForDate(previewPoint.x)) + 0.5);
   const left = Math.min(xa, xb);
   const width = Math.abs(xb - xa);
   ctx.save();

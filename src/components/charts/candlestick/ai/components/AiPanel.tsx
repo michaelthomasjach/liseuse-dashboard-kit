@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpIcon, CloseIcon, DetachWindowIcon, MaximizeIcon, PlusIcon, SparkleIcon } from "../../../../icons";
+import { ArrowUpIcon, CheckIcon, ChevronDownIcon, CloseIcon, DetachWindowIcon, MaximizeIcon, PlusIcon, SparkleIcon, TrashIcon } from "../../../../icons";
 import { toolStep, type AiTranscriptEntry } from "../useAiAssistant";
 import type { AiChartContext } from "../interfaces/AiChartContext.interface";
 import type { AiSend } from "../interfaces/AiMessage.interface";
@@ -13,6 +13,7 @@ import type { ScriptReport } from "../../scripting/interfaces/ScriptReport.inter
 import { ReportPrintWindow } from "../../scripting/components/ReportPrintWindow";
 import { ReportView } from "../../scripting/components/ReportView";
 import { Modal } from "../../../../primitives/Modal";
+import { DropdownPanel } from "../../../../primitives/DropdownPanel";
 
 export interface AiPanelProps {
   open: boolean;
@@ -64,7 +65,12 @@ export function AiPanel({
   onRequestDetach,
   chrome = "full",
 }: AiPanelProps) {
-  const { transcript, busy, ask, stop, reset, conversations, activeConversationId, newConversation, selectConversation } = assistant;
+  const { transcript, busy, ask, stop, reset, conversations, activeConversationId, newConversation, selectConversation, deleteConversation } = assistant;
+  /** Liste des conversations (menu déroulant du kit sous le titre) et conversation dont la suppression attend confirmation. */
+  const [conversationsOpen, setConversationsOpen] = useState(false);
+  const conversationsAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const [conversationToDelete, setConversationToDelete] = useState<{ id: string; title: string } | null>(null);
+  const activeConversation = conversations.find((c) => c.id === activeConversationId) ?? null;
   const setDraft = onDraftChange;
   const [menuIndex, setMenuIndex] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -232,21 +238,78 @@ export function AiPanel({
         </button>
         {/* Les conversations enregistrées, nommées par leur première question. */}
         {conversations.length > 0 && (
-          <select
-            className="lq-ai__conversation-select"
-            value={activeConversationId ?? ""}
-            onChange={(e) => (e.target.value ? selectConversation(e.target.value) : newConversation())}
+          <button
+            ref={conversationsAnchorRef}
+            type="button"
+            className={["lq-ai__conversation-trigger", conversationsOpen && "lq-ai__conversation-trigger--open"].filter(Boolean).join(" ")}
+            onClick={() => setConversationsOpen((o) => !o)}
+            aria-haspopup="listbox"
+            aria-expanded={conversationsOpen}
             aria-label="Conversation"
             title="Changer de conversation"
           >
-            {activeConversationId === null && <option value="">Nouvelle conversation</option>}
-            {conversations.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title}
-              </option>
-            ))}
-          </select>
+            <span className="lq-ai__conversation-trigger-label">{activeConversation?.title ?? "Nouvelle conversation"}</span>
+            <ChevronDownIcon size={12} />
+          </button>
         )}
+        {/* Menu déroulant du kit (comme les modèles enregistrés de l'en-tête du graphique) : une ligne par conversation,
+            sa corbeille à droite. Les lignes survolées ou choisies restent en retrait des bords de la liste. */}
+        <DropdownPanel
+          open={conversationsOpen && conversations.length > 0}
+          onClose={() => setConversationsOpen(false)}
+          anchorRef={conversationsAnchorRef}
+          placement="bottom"
+          width={300}
+          className="lq-ai__conversations"
+          header={
+            <div className="lq-dropdown-panel__header-row">
+              <span>Conversations</span>
+              <span className="lq-dropdown-panel__header-count">{conversations.length}</span>
+            </div>
+          }
+        >
+          <div role="listbox" aria-label="Conversations" className="lq-ai__conversation-list">
+            {activeConversationId === null && (
+              <div className="lq-ai__conversation-row lq-ai__conversation-row--active" role="option" aria-selected>
+                <span className="lq-ai__conversation-name">
+                  <CheckIcon size={12} />
+                  Nouvelle conversation
+                </span>
+              </div>
+            )}
+            {conversations.map((c) => {
+              const active = c.id === activeConversationId;
+              return (
+                <div key={c.id} className={["lq-ai__conversation-row", active && "lq-ai__conversation-row--active"].filter(Boolean).join(" ")} role="option" aria-selected={active}>
+                  <button
+                    type="button"
+                    className="lq-ai__conversation-name"
+                    onClick={() => {
+                      selectConversation(c.id);
+                      setConversationsOpen(false);
+                    }}
+                    title={c.title}
+                  >
+                    {active && <CheckIcon size={12} />}
+                    <span className="lq-ai__conversation-title">{c.title}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="lq-ai__conversation-delete"
+                    onClick={() => {
+                      setConversationsOpen(false);
+                      setConversationToDelete({ id: c.id, title: c.title });
+                    }}
+                    aria-label={`Supprimer la conversation « ${c.title} »`}
+                    title="Supprimer cette conversation"
+                  >
+                    <TrashIcon size={12} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </DropdownPanel>
         <span className="lq-ai__header-actions">
           {transcript.length > 0 && (
             <button type="button" className="lq-ai__header-button" onClick={reset} title="Effacer cette conversation (retirée de la liste)">
@@ -346,6 +409,34 @@ export function AiPanel({
         ))}
       </div>
 
+      {conversationToDelete !== null && (
+        <Modal
+          open
+          onClose={() => setConversationToDelete(null)}
+          title="Supprimer cette conversation ?"
+          footer={
+            <div className="lq-chart__edit-drawing-footer">
+              <button type="button" className="lq-chart__reset-button" onClick={() => setConversationToDelete(null)}>
+                Annuler
+              </button>
+              <button
+                type="button"
+                className="lq-chart__confirm-button"
+                onClick={() => {
+                  deleteConversation(conversationToDelete.id);
+                  setConversationToDelete(null);
+                }}
+              >
+                Supprimer
+              </button>
+            </div>
+          }
+        >
+          <p className="lq-ai__confirm-text">
+            «&nbsp;{conversationToDelete.title}&nbsp;» sera retirée de vos conversations, questions et réponses comprises. Cette action est irréversible.
+          </p>
+        </Modal>
+      )}
       {openReport !== null && (
         <Modal open onClose={() => setOpenReport(null)} title={openReport.title} size="wide" footer={null}>
           <ReportView report={openReport} />
@@ -581,6 +672,11 @@ function AiTurn({ entries, running }: { entries: AiTranscriptEntry[]; running: i
             <div key={block.entry.id} className={["lq-ai__message", "lq-ai__message--assistant", "lq-ai__message--md", block.entry.isError && "lq-ai__message--error"].filter(Boolean).join(" ")}>
               {/* Markdown de la réponse (titres, gras, liens, listes, tableaux) rendu aux couleurs du thème. */}
               {block.entry.isError ? block.entry.text : <AiMarkdown text={block.entry.text} />}
+              {block.entry.truncated && (
+                <p className="lq-ai__truncated" role="note">
+                  Réponse coupée : la limite de longueur du modèle a été atteinte. Demandez « continue » pour la suite.
+                </p>
+              )}
             </div>
           ) : (
             <ul key={`steps-${b}`} className="lq-ai__steps">

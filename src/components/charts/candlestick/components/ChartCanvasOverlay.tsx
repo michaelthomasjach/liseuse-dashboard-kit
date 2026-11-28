@@ -471,6 +471,17 @@ export function ChartCanvasOverlay({
             );
           })}
 
+          {/* Séparateur de l'axe des prix (réglage de la Toile) : un trait vertical au bord de la colonne des prix, du
+              haut des panneaux au bas de l'axe du temps. Couleur et épaisseur en variables CSS (jour / nuit, Auto). */}
+          {gutter.separator && gutter.width > 0 && (
+            <line
+              className="lq-chart__price-axis-separator"
+              x1={snapPixel(gutter.side === "left" ? 0 : dims.boundedWidth)}
+              x2={snapPixel(gutter.side === "left" ? 0 : dims.boundedWidth)}
+              y1={0}
+              y2={plotBoundedHeight + (gutter.timeVisible ? dims.margin.bottom : 0)}
+            />
+          )}
           {gutter.timeVisible && <ChartAxis
             scale={zoomedXScale}
             orientation="bottom"

@@ -113,6 +113,9 @@ export interface RenderCandlestickChartParams {
    *  `computeCandleIcons`. Absent ou `null` : aucune, le cas courant. */
   candleIcons?: import("./CandleColorRule.interface").CandleIconMark[] | null;
   indexForDate: (d: Date) => number;
+  /** Outil « Interroger l'IA sur une zone » : index de la dernière bougie close, où s'arrête la zone en cours de pose
+   *  (voir `lastClosedCandleIndex`). Absent : la dernière bougie. */
+  rangeAskMaxIndex?: number;
   /** Draws a diagonal-hatched marker over the price pane's own "future" — from just past the last
    *  candle to the plot's right edge — see drawFutureZone.ts. A chart-settings toggle, not a
    *  prop; default false. */

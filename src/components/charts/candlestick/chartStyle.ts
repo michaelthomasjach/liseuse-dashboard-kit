@@ -95,6 +95,11 @@ export interface ChartStyleSettings {
   /** Séparateurs entre panneaux : couleur et épaisseur (px, 2 par défaut). */
   paneSeparatorColor?: string;
   paneSeparatorWidth?: number;
+  /** Trait vertical entre le tracé et l'échelle des prix, du haut des panneaux au bas de l'axe du temps. Défaut faux.
+   *  Couleur : celle des séparateurs de panneaux si absente ; épaisseur en px (1 à 4, 1 par défaut). */
+  priceAxisSeparatorVisible?: boolean;
+  priceAxisSeparatorColor?: string;
+  priceAxisSeparatorWidth?: number;
   /** Réticule. Défaut : couleur de texte atténuée, tirets, 1 px. */
   crosshairColor?: string;
   crosshairStyle?: ChartLineStyle;
@@ -214,6 +219,7 @@ export const MODE_COLOR_KEYS = [
   "vertGridColor",
   "horzGridColor",
   "paneSeparatorColor",
+  "priceAxisSeparatorColor",
   "crosshairColor",
   "scaleTextColor",
   "scaleLineColor",
@@ -283,6 +289,7 @@ function modePreset(tokens: ChartSurfaceTokens, grid: string): ModePreset {
       horzGridColor: grid,
       vertGridColor: grid,
       paneSeparatorColor: tokens.border,
+      priceAxisSeparatorColor: tokens.border,
       crosshairColor: tokens.muted,
       scaleTextColor: tokens.muted,
       scaleLineColor: tokens.border,
@@ -477,6 +484,9 @@ export const CANVAS_STYLE_KEYS: (keyof ChartStyleSettings)[] = [
   "horzGridStyle",
   "paneSeparatorColor",
   "paneSeparatorWidth",
+  "priceAxisSeparatorVisible",
+  "priceAxisSeparatorColor",
+  "priceAxisSeparatorWidth",
   "crosshairColor",
   "crosshairStyle",
   "crosshairWidth",
@@ -581,6 +591,8 @@ export function chartStyleCssVars(raw: ChartStyleSettings): CSSProperties {
   if (style.scaleLineColor) vars["--lq-chart-domain-color"] = style.scaleLineColor;
   if (style.paneSeparatorColor) vars["--lq-chart-pane-separator-color"] = style.paneSeparatorColor;
   if (style.paneSeparatorWidth) vars["--lq-chart-pane-separator-width"] = `${style.paneSeparatorWidth}px`;
+  if (style.priceAxisSeparatorColor) vars["--lq-chart-price-axis-separator-color"] = style.priceAxisSeparatorColor;
+  if (style.priceAxisSeparatorWidth) vars["--lq-chart-price-axis-separator-width"] = `${style.priceAxisSeparatorWidth}px`;
   if (style.watermarkColor) vars["--lq-chart-watermark-color"] = style.watermarkColor;
   for (const [name, color] of axisLabelColors(style)) if (color) vars[`--lq-chart-${name}`] = color;
   // Mode imposé différent de celui du site : la zone du graphique prend les jetons de surface de ce mode, pour que la
@@ -676,6 +688,8 @@ export interface ChartYAxisGutter {
   priceVisible: boolean;
   panesVisible: boolean;
   timeVisible: boolean;
+  /** Trait vertical entre le tracé et cette colonne (réglage `priceAxisSeparatorVisible`). */
+  separator?: boolean;
 }
 
 /** La colonne d'avant ces réglages (à droite, toute la marge droite), pour un appelant qui n'en passe pas. */

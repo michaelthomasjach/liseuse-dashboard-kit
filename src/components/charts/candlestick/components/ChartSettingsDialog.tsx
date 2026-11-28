@@ -1214,28 +1214,31 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
             <Row illus="lineFill" label="Remplissage sous la courbe" hint={fill ? undefined : "Une simple ligne, sans aire"}>
               <Toggle checked={fill} onChange={() => set({ lineFill: fill ? undefined : true })} ariaLabel="Remplissage sous la ligne de clôture" />
             </Row>
-            <Row illus="lineFillType" label="Type de remplissage sous la courbe des prix" disabled={!fill}>
-              <Select<"solid" | "gradient">
-                size="small"
-                className="lq-chart-settings__select"
-                options={[
-                  { value: "solid", label: "Uni" },
-                  { value: "gradient", label: "Dégradé" },
-                ]}
-                value={gradient ? "gradient" : "solid"}
-                onChange={(v) => set({ lineFillGradient: v === "gradient" ? true : undefined })}
-                ariaLabel="Type de remplissage sous la courbe des prix"
-                disabled={!fill}
-              />
-              {gradient ? (
-                <>
-                  <ColorPicker value={chartStyle.lineFillTopColor ?? withAlpha(lineColor, 0.35)} onChange={(c) => set({ lineFillTopColor: c })} onReset={() => set({ lineFillTopColor: styleDefaults.lineFillTopColor })} disabled={!fill} aria-label="Couleur du haut du dégradé de la ligne" title="Haut" />
-                  <ColorPicker value={chartStyle.lineFillBottomColor ?? withAlpha(lineColor, 0)} onChange={(c) => set({ lineFillBottomColor: c })} onReset={() => set({ lineFillBottomColor: styleDefaults.lineFillBottomColor })} disabled={!fill} aria-label="Couleur du bas du dégradé de la ligne" title="Bas" />
-                </>
-              ) : (
-                <ColorPicker value={chartStyle.lineFillColor ?? withAlpha(lineColor, 0.08)} onChange={(c) => set({ lineFillColor: c })} onReset={() => set({ lineFillColor: styleDefaults.lineFillColor })} disabled={!fill} aria-label="Couleur du remplissage de la ligne" />
-              )}
-            </Row>
+            {/* Type de remplissage : seulement quand le remplissage est activé. */}
+            {fill && (
+              <Row illus="lineFillType" label="Type de remplissage sous la courbe des prix" disabled={!fill}>
+                <Select<"solid" | "gradient">
+                  size="small"
+                  className="lq-chart-settings__select"
+                  options={[
+                    { value: "solid", label: "Uni" },
+                    { value: "gradient", label: "Dégradé" },
+                  ]}
+                  value={gradient ? "gradient" : "solid"}
+                  onChange={(v) => set({ lineFillGradient: v === "gradient" ? true : undefined })}
+                  ariaLabel="Type de remplissage sous la courbe des prix"
+                  disabled={!fill}
+                />
+                {gradient ? (
+                  <>
+                    <ColorPicker value={chartStyle.lineFillTopColor ?? withAlpha(lineColor, 0.35)} onChange={(c) => set({ lineFillTopColor: c })} onReset={() => set({ lineFillTopColor: styleDefaults.lineFillTopColor })} disabled={!fill} aria-label="Couleur du haut du dégradé de la ligne" title="Haut" />
+                    <ColorPicker value={chartStyle.lineFillBottomColor ?? withAlpha(lineColor, 0)} onChange={(c) => set({ lineFillBottomColor: c })} onReset={() => set({ lineFillBottomColor: styleDefaults.lineFillBottomColor })} disabled={!fill} aria-label="Couleur du bas du dégradé de la ligne" title="Bas" />
+                  </>
+                ) : (
+                  <ColorPicker value={chartStyle.lineFillColor ?? withAlpha(lineColor, 0.08)} onChange={(c) => set({ lineFillColor: c })} onReset={() => set({ lineFillColor: styleDefaults.lineFillColor })} disabled={!fill} aria-label="Couleur du remplissage de la ligne" />
+                )}
+              </Row>
+            )}
           </>
         );
       case "renko":

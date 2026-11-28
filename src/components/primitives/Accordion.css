@@ -1,0 +1,65 @@
+/* Accordéon (FAQ) : <details> natifs, ouverture et fermeture animées. */
+.lq-accordion {
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border-radius: var(--lq-radius-lg, 16px);
+  background: var(--lq-color-panel);
+  interpolate-size: allow-keywords;
+}
+
+.lq-accordion__item + .lq-accordion__item {
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-accordion__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+  padding: var(--lq-space-4) var(--lq-space-4);
+  border-radius: var(--lq-radius-md, 10px);
+  font-weight: 600;
+  color: var(--lq-color-text);
+  cursor: pointer;
+  list-style: none;
+  transition: background-color var(--lq-transition-fast, 0.15s);
+}
+.lq-accordion__summary::-webkit-details-marker { display: none; }
+.lq-accordion__summary:hover { background: var(--lq-color-hover); }
+.lq-accordion__summary:focus-visible { outline: 2px solid var(--lq-color-focus-ring); outline-offset: -2px; }
+
+.lq-accordion__icon {
+  flex: none;
+  color: var(--lq-color-accent);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lq-accordion__item[open] .lq-accordion__icon { transform: rotate(135deg); }
+
+/* Hauteur animée à l'ouverture comme à la fermeture (navigateurs récents) ; ailleurs, le contenu apparaît en fondu. */
+.lq-accordion__item::details-content {
+  block-size: 0;
+  overflow: clip;
+  transition: block-size 0.38s cubic-bezier(0.22, 1, 0.36, 1), content-visibility 0.38s allow-discrete;
+}
+.lq-accordion__item[open]::details-content { block-size: auto; }
+
+.lq-accordion__content {
+  padding: 0 var(--lq-space-4) var(--lq-space-4);
+  color: var(--lq-color-text-muted);
+  line-height: 1.6;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.3s ease, transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lq-accordion__item[open] .lq-accordion__content { opacity: 1; transform: none; }
+.lq-accordion__content > :first-child { margin-top: 0; }
+.lq-accordion__content > :last-child { margin-bottom: 0; }
+
+@starting-style {
+  .lq-accordion__item[open] .lq-accordion__content { opacity: 0; transform: translateY(-6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-accordion__item::details-content, .lq-accordion__content, .lq-accordion__icon { transition: none; }
+}

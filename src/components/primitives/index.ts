@@ -48,6 +48,8 @@ export type { CurvedCarouselProps, CurvedCarouselItem } from "./CurvedCarousel";
 export { TreeView, moveTreeNode } from "./TreeView";
 export type { TreeViewProps, TreeNode, TreeDropPosition } from "./TreeView";
 
+export { Accordion } from "./Accordion";
+export type { AccordionItem, AccordionProps } from "./Accordion";
 export { ExpandableCard } from "./ExpandableCard";
 export type { ExpandableCardProps } from "./ExpandableCard";
 

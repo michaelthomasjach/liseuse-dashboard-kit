@@ -221,11 +221,15 @@
   gap: var(--lq-space-1);
 }
 
+/* Marge intérieure : le fond d'un élément survolé ou choisi ne touche jamais les bords du conteneur. */
 .lq-mail__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   flex: 1;
   min-height: 0;
   margin: 0;
-  padding: 0;
+  padding: var(--lq-space-2);
   list-style: none;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -238,7 +242,7 @@
   align-items: start;
   gap: var(--lq-space-2);
   padding: var(--lq-space-3) var(--lq-space-2) var(--lq-space-3) var(--lq-space-3);
-  border-bottom: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-md, 10px);
   transition: background-color var(--lq-transition-fast);
 }
 

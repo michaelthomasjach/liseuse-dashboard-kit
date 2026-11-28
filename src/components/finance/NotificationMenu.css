@@ -99,9 +99,10 @@
   white-space: nowrap;
 }
 
+/* Marge intérieure : le fond d'un élément survolé ou choisi ne touche jamais les bords du conteneur. */
 .lq-notification-menu__list {
   margin: 0;
-  padding: 0;
+  padding: 4px;
   list-style: none;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -113,6 +114,7 @@
   display: flex;
   align-items: stretch;
   padding-left: var(--lq-space-5);
+  border-radius: var(--lq-radius-md, 10px);
   transition: background-color var(--lq-transition-fast);
 }
 

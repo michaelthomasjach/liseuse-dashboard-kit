@@ -12,6 +12,11 @@
   padding: 0;
 }
 
+/* Marge intérieure : le fond d'un élément survolé ou choisi ne touche jamais les bords du conteneur. */
+.lq-tree {
+  padding: 4px;
+}
+
 .lq-tree__item {
   outline: none;
 }

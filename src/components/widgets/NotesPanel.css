@@ -60,18 +60,22 @@
   color: var(--lq-color-text-muted);
 }
 
+/* Marge intérieure : le fond d'un élément survolé ou choisi ne touche jamais les bords du conteneur. */
 .lq-notes-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   flex: 1;
   min-height: 0;
   margin: 0;
-  padding: 0;
+  padding: var(--lq-space-2);
   overflow-y: auto;
   list-style: none;
 }
 
 .lq-notes-panel__item {
   position: relative;
-  border-bottom: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-md, 10px);
 }
 
 .lq-notes-panel__item:hover {
@@ -80,7 +84,6 @@
 
 .lq-notes-panel__item--on {
   background: color-mix(in srgb, var(--lq-color-accent) 8%, var(--lq-color-panel));
-  border-left-color: var(--lq-color-accent);
 }
 
 .lq-notes-panel__open {

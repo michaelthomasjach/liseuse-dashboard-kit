@@ -30,13 +30,15 @@
   height: 18px;
   flex-shrink: 0;
   border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
-  border-radius: var(--lq-radius-sm);
+  /* Toujours ronde, dans tous les thèmes (plus spécifique que les arrondis posés par un thème, voir plus bas). */
+  border-radius: 50%;
   background-color: var(--lq-color-panel);
   transition: background-color 150ms ease, border-color 150ms ease, transform 120ms ease;
 }
 
+:is(.lq-root, .lgk, .mdk) .lq-checkbox .lq-checkbox__box,
 .lq-root[data-lq-palette="eink"] .lq-checkbox__box {
-  border-radius: 0;
+  border-radius: 50%;
 }
 
 .lq-checkbox__input:focus-visible ~ .lq-checkbox__box {
@@ -44,8 +46,9 @@
 }
 
 .lq-checkbox__box--checked {
-  background-color: var(--lq-color-fill);
-  border-color: var(--lq-color-fill);
+  /* Cochée : fond vert, coche blanche. */
+  background-color: var(--lq-color-check, #22a35a);
+  border-color: var(--lq-color-check, #22a35a);
 }
 
 .lq-checkbox__input:not(:disabled):active ~ .lq-checkbox__box {
@@ -56,8 +59,8 @@
   width: 12px;
   height: 12px;
   fill: none;
-  stroke: var(--lq-color-accent-contrast);
-  stroke-width: 2;
+  stroke: #ffffff;
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 20;
@@ -86,4 +89,10 @@
 .lq-checkbox__label {
   font-size: 0.88rem;
   color: var(--lq-color-text);
+}
+
+/* E-ink : pas de couleur, la case cochée reste noire (coche couleur du papier). */
+.lq-root[data-lq-palette="eink"] .lq-checkbox__box--checked {
+  background-color: var(--lq-color-text);
+  border-color: var(--lq-color-text);
 }

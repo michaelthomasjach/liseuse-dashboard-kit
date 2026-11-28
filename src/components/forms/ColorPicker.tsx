@@ -81,6 +81,8 @@ export interface ColorPickerProps {
   onChange: (color: string) => void;
   /** Curseur d'opacité (0–100 %). Défaut vrai ; faux pour une couleur qui doit rester opaque. */
   alpha?: boolean;
+  /** Bouton « Réinitialiser » en bas du panneau : remet la couleur (opacité comprise) à sa valeur par défaut. */
+  onReset?: () => void;
   /** Épaisseur du trait (pixels) : avec `onThicknessChange`, une rangée « Épaisseur » sous l'opacité, pour une
    *  couleur de ligne (courbe d'indicateur, dessin). */
   thickness?: number;
@@ -115,6 +117,7 @@ export interface ColorPickerProps {
  */
 export function ColorPicker({
   value,
+  onReset,
   onChange,
   alpha = true,
   thickness,
@@ -230,6 +233,7 @@ export function ColorPicker({
           thickness={thickness}
           onThicknessChange={onThicknessChange}
           thicknessOptions={thicknessOptions}
+          {...(onReset ? { onReset } : {})}
         />
       )}
     </>
@@ -251,11 +255,12 @@ interface PanelProps {
   thicknessOptions: number[];
   /** Choix jour / nuit (graphique), en tête du panneau. */
   modeRow?: ReactNode;
+  onReset?: () => void;
 }
 
 const stop = (e: SyntheticEvent) => e.stopPropagation();
 
-function ColorPickerPanel({ anchorRef, value, onChange, alpha, palette, onClose, preferences, update, label, thickness, onThicknessChange, thicknessOptions, modeRow }: PanelProps) {
+function ColorPickerPanel({ anchorRef, value, onChange, alpha, palette, onClose, preferences, update, label, thickness, onThicknessChange, thicknessOptions, modeRow, onReset }: PanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(panelRef, true);
   const [customOpen, setCustomOpen] = useState(false);
@@ -473,6 +478,11 @@ function ColorPickerPanel({ anchorRef, value, onChange, alpha, palette, onClose,
             Jeux de couleurs{preferences.colorSets.length ? ` (${preferences.colorSets.length})` : ""}
             <ChevronDownIcon size={12} style={{ transform: setsOpen ? "rotate(180deg)" : undefined }} />
           </button>
+          {onReset && (
+            <button type="button" className="lq-color-picker__reset" onClick={onReset} title="Remettre la couleur et l'opacité par défaut">
+              Réinitialiser
+            </button>
+          )}
         </div>
         {setsOpen && (
           <div id={`${uid}-sets`}>

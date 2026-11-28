@@ -554,3 +554,8 @@
 }
 .lq-color-picker__mode-swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
 .lq-color-picker__mode-hint { margin: 0; font-size: 0.72rem; line-height: 1.35; color: var(--lq-color-text-muted, #666); }
+
+/* « Réinitialiser » : à droite du pied du panneau, remet la couleur et l'opacité par défaut. */
+.lq-color-picker__footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.lq-color-picker__reset { padding: 4px 10px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--lq-color-text) 7%, transparent); color: var(--lq-color-text); font: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+.lq-color-picker__reset:hover { background: var(--lq-color-hover); }

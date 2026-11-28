@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useContext, useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { Toggle } from "../../../primitives/Toggle";
 import { Checkbox } from "../../../forms/Checkbox";
@@ -13,7 +13,7 @@ import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface"
 import type { CandleColorRule } from "../interfaces/CandleColorRule.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { ChartButtonsVisibility, ChartColorMode, ChartDateFormat, ChartLineStyle, ChartStyleSettings, ChartStyleTemplate, ChartTimeFormat } from "../chartStyle";
-import { CANVAS_STYLE_KEYS, DEFAULT_RESET_ZOOM_BARS, MODE_COLOR_KEYS, chartStyleMeta, templateStyle } from "../chartStyle";
+import { CANVAS_STYLE_KEYS, ChartStyleDefaultsContext, DEFAULT_RESET_ZOOM_BARS, MODE_COLOR_KEYS, chartStyleMeta, templateStyle } from "../chartStyle";
 import { CandleColorRulesEditor } from "./CandleColorRulesEditor";
 import { hasCandleColorOverrides, resetCandleColors } from "../candleColorOverrides";
 import { IllustrationColorsProvider, SettingIllustration, type SettingIllustrationId } from "./settingsIllustrations";
@@ -284,6 +284,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
     });
   }, [themeElement]);
 
+  const styleDefaults = useContext(ChartStyleDefaultsContext);
   const set = (patch: Partial<ChartStyleSettings>) => {
     const next: ChartStyleSettings = { ...chartStyle, ...patch };
     // Un réglage remis à sa valeur vide disparaît : l'objet enregistré ne garde que ce qui a été changé.
@@ -533,25 +534,25 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
               />
               <ColorPicker
                 value={chartStyle.seriesLabelBg ?? themeColors.accent}
-                onChange={(c) => set({ seriesLabelBg: c })}
+                onChange={(c) => set({ seriesLabelBg: c })} onReset={() => set({ seriesLabelBg: styleDefaults.seriesLabelBg })}
                 disabled={!chartStyle.seriesLabelBg}
                 aria-label="Couleur de fond des étiquettes des séries"
                 title="Fond"
               />
               <ColorPicker
                 value={chartStyle.seriesLabelText ?? themeColors.accentContrast}
-                onChange={(c) => set({ seriesLabelText: c })}
+                onChange={(c) => set({ seriesLabelText: c })} onReset={() => set({ seriesLabelText: styleDefaults.seriesLabelText })}
                 aria-label="Couleur du texte des étiquettes des séries"
                 title="Texte"
               />
             </Row>
             <Row illus="crosshairPriceLabel" label="Réticule sur l'axe des prix" hint="Prix ou valeur survolé, fond et texte">
-              <ColorPicker value={chartStyle.crosshairPriceLabelBg ?? themeColors.accent} onChange={(c) => set({ crosshairPriceLabelBg: c })} aria-label="Couleur de fond de l'étiquette du réticule (prix)" title="Fond" />
-              <ColorPicker value={chartStyle.crosshairPriceLabelText ?? themeColors.accentContrast} onChange={(c) => set({ crosshairPriceLabelText: c })} aria-label="Couleur du texte de l'étiquette du réticule (prix)" title="Texte" />
+              <ColorPicker value={chartStyle.crosshairPriceLabelBg ?? themeColors.accent} onChange={(c) => set({ crosshairPriceLabelBg: c })} onReset={() => set({ crosshairPriceLabelBg: styleDefaults.crosshairPriceLabelBg })} aria-label="Couleur de fond de l'étiquette du réticule (prix)" title="Fond" />
+              <ColorPicker value={chartStyle.crosshairPriceLabelText ?? themeColors.accentContrast} onChange={(c) => set({ crosshairPriceLabelText: c })} onReset={() => set({ crosshairPriceLabelText: styleDefaults.crosshairPriceLabelText })} aria-label="Couleur du texte de l'étiquette du réticule (prix)" title="Texte" />
             </Row>
             <Row illus="crosshairTimeLabel" label="Réticule sur l'axe du temps" hint="Date survolée, fond et texte">
-              <ColorPicker value={chartStyle.crosshairTimeLabelBg ?? themeColors.accent} onChange={(c) => set({ crosshairTimeLabelBg: c })} aria-label="Couleur de fond de l'étiquette de date du réticule" title="Fond" />
-              <ColorPicker value={chartStyle.crosshairTimeLabelText ?? themeColors.accentContrast} onChange={(c) => set({ crosshairTimeLabelText: c })} aria-label="Couleur du texte de l'étiquette de date du réticule" title="Texte" />
+              <ColorPicker value={chartStyle.crosshairTimeLabelBg ?? themeColors.accent} onChange={(c) => set({ crosshairTimeLabelBg: c })} onReset={() => set({ crosshairTimeLabelBg: styleDefaults.crosshairTimeLabelBg })} aria-label="Couleur de fond de l'étiquette de date du réticule" title="Fond" />
+              <ColorPicker value={chartStyle.crosshairTimeLabelText ?? themeColors.accentContrast} onChange={(c) => set({ crosshairTimeLabelText: c })} onReset={() => set({ crosshairTimeLabelText: styleDefaults.crosshairTimeLabelText })} aria-label="Couleur du texte de l'étiquette de date du réticule" title="Texte" />
             </Row>
             {AXIS_LABEL_KEYS.some((k) => chartStyle[k] !== undefined) && (
               <div className="lq-chart-settings__row lq-chart-settings__row--action">
@@ -726,25 +727,25 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                   }
                   ariaLabel="Type de fond"
                 />
-                <ColorPicker value={chartStyle.backgroundColor ?? tc.bg} onChange={(c) => set({ backgroundColor: c })} aria-label={gradient ? "Couleur du haut du dégradé" : "Couleur du fond"} />
+                <ColorPicker value={chartStyle.backgroundColor ?? tc.bg} onChange={(c) => set({ backgroundColor: c })} onReset={() => set({ backgroundColor: styleDefaults.backgroundColor })} aria-label={gradient ? "Couleur du haut du dégradé" : "Couleur du fond"} />
                 {gradient && (
                   <ColorPicker value={chartStyle.backgroundColor2 ?? tc.bg} onChange={(c) => set({ backgroundColor2: c, backgroundColor: chartStyle.backgroundColor ?? tc.bg })} aria-label="Couleur du bas du dégradé" />
                 )}
               </Row>
               <Row illus="vertGrid" label="Lignes de grille verticales">
                 {lineStyleSelect(chartStyle.vertGridStyle ?? "dashed", (v) => set({ vertGridStyle: v }), "Style de la grille verticale", !vert)}
-                <ColorPicker value={chartStyle.vertGridColor ?? tc.grid} onChange={(c) => set({ vertGridColor: c })} disabled={!vert} aria-label="Couleur de la grille verticale" />
+                <ColorPicker value={chartStyle.vertGridColor ?? tc.grid} onChange={(c) => set({ vertGridColor: c })} onReset={() => set({ vertGridColor: styleDefaults.vertGridColor })} disabled={!vert} aria-label="Couleur de la grille verticale" />
                 <Checkbox checked={vert} onChange={() => set({ vertGridVisible: vert ? undefined : true })} ariaLabel="Lignes de grille verticales" />
               </Row>
               <Row illus="horzGrid" label="Lignes de grille horizontales">
                 {lineStyleSelect(chartStyle.horzGridStyle ?? "dashed", (v) => set({ horzGridStyle: v }), "Style de la grille horizontale", !horz)}
-                <ColorPicker value={chartStyle.horzGridColor ?? tc.grid} onChange={(c) => set({ horzGridColor: c })} disabled={!horz} aria-label="Couleur de la grille horizontale" />
+                <ColorPicker value={chartStyle.horzGridColor ?? tc.grid} onChange={(c) => set({ horzGridColor: c })} onReset={() => set({ horzGridColor: styleDefaults.horzGridColor })} disabled={!horz} aria-label="Couleur de la grille horizontale" />
                 <Checkbox checked={horz} onChange={() => set({ horzGridVisible: horz ? false : undefined })} ariaLabel="Lignes de grille horizontales" />
               </Row>
               <Row illus="paneSeparators" label="Séparateurs de panneaux" hint="Couleur et épaisseur">
                 <ColorPicker
                   value={chartStyle.paneSeparatorColor ?? tc.grid}
-                  onChange={(c) => set({ paneSeparatorColor: c })}
+                  onChange={(c) => set({ paneSeparatorColor: c })} onReset={() => set({ paneSeparatorColor: styleDefaults.paneSeparatorColor })}
                   thickness={chartStyle.paneSeparatorWidth ?? 2}
                   thicknessOptions={[1, 2, 3, 4, 6]}
                   onThicknessChange={(w) => set({ paneSeparatorWidth: w === 2 ? undefined : w })}
@@ -755,7 +756,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                 {lineStyleSelect(chartStyle.crosshairStyle ?? "dashed", (v) => set({ crosshairStyle: v }), "Style du réticule")}
                 <ColorPicker
                   value={chartStyle.crosshairColor ?? tc.muted}
-                  onChange={(c) => set({ crosshairColor: c })}
+                  onChange={(c) => set({ crosshairColor: c })} onReset={() => set({ crosshairColor: styleDefaults.crosshairColor })}
                   thickness={chartStyle.crosshairWidth ?? 1}
                   onThicknessChange={(w) => set({ crosshairWidth: w === 1 ? undefined : w })}
                   aria-label="Couleur du réticule"
@@ -812,10 +813,10 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                   onChange={(v) => set({ scaleTextSize: v ? Number(v) : undefined })}
                   ariaLabel="Taille du texte des échelles"
                 />
-                <ColorPicker value={chartStyle.scaleTextColor ?? tc.muted} onChange={(c) => set({ scaleTextColor: c })} aria-label="Couleur du texte des échelles" />
+                <ColorPicker value={chartStyle.scaleTextColor ?? tc.muted} onChange={(c) => set({ scaleTextColor: c })} onReset={() => set({ scaleTextColor: styleDefaults.scaleTextColor })} aria-label="Couleur du texte des échelles" />
               </Row>
               <Row illus="scaleLines" label="Lignes" hint="Axes et graduations">
-                <ColorPicker value={chartStyle.scaleLineColor ?? tc.grid} onChange={(c) => set({ scaleLineColor: c })} aria-label="Couleur des lignes des échelles" />
+                <ColorPicker value={chartStyle.scaleLineColor ?? tc.grid} onChange={(c) => set({ scaleLineColor: c })} onReset={() => set({ scaleLineColor: styleDefaults.scaleLineColor })} aria-label="Couleur des lignes des échelles" />
               </Row>
             </Section>
             <Section title="Boutons">
@@ -1045,6 +1046,7 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
     const v = getComputedStyle(rootRef.current).getPropertyValue("--lq-color-accent").trim();
     if (/^#[0-9a-f]{6}$/i.test(v)) setAccent(v);
   }, []);
+  const styleDefaults = useContext(ChartStyleDefaultsContext);
   const set = (patch: Partial<ChartStyleSettings>) => {
     const next: ChartStyleSettings = { ...chartStyle, ...patch };
     for (const key of Object.keys(next) as (keyof ChartStyleSettings)[]) if (next[key] === undefined) delete next[key];
@@ -1166,18 +1168,12 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
       case "line":
         return (
           <>
-            <Row illus="lineStroke" label="Ligne" hint="Style, couleur et épaisseur">
+            <Row illus="lineStroke" label="Ligne" hint="Style du trait">
               {lineStyleSelect(chartStyle.lineStyle ?? "solid", (v) => set({ lineStyle: v === "solid" ? undefined : v }), "Style de la ligne de clôture")}
-              <ColorPicker
-                value={lineColor}
-                onChange={(c) => set({ lineColor: c })}
-                thickness={chartStyle.lineWidth ?? 1.5}
-                thicknessOptions={[1, 1.5, 2, 3, 4]}
-                onThicknessChange={(w) => set({ lineWidth: w === 1.5 ? undefined : w })}
-                aria-label="Couleur de la ligne de clôture"
-              />
             </Row>
-            <Row illus="lineColorMode" label="Couleur de la ligne" hint={lineGradient ? "Haut · bas" : undefined}>
+            {/* La couleur se choisit sur sa propre rangée : unie (un sélecteur) ou en dégradé (haut · bas) ; l'épaisseur du
+                trait est dans le sélecteur (le premier en dégradé). */}
+            <Row illus="lineColorMode" label="Couleur de la ligne" hint={lineGradient ? "Haut · bas, et épaisseur" : "Couleur et épaisseur"}>
               <Select<"solid" | "gradient">
                 size="small"
                 className="lq-chart-settings__select"
@@ -1191,10 +1187,29 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
               />
               {lineGradient ? (
                 <>
-                  <ColorPicker value={chartStyle.lineTopColor ?? lineColor} onChange={(c) => set({ lineTopColor: c })} aria-label="Couleur du haut de la ligne" title="Haut" />
-                  <ColorPicker value={chartStyle.lineBottomColor ?? lineColor} onChange={(c) => set({ lineBottomColor: c })} aria-label="Couleur du bas de la ligne" title="Bas" />
+                  <ColorPicker
+                    value={chartStyle.lineTopColor ?? lineColor}
+                    onChange={(c) => set({ lineTopColor: c })}
+                    onReset={() => set({ lineTopColor: styleDefaults.lineTopColor })}
+                    thickness={chartStyle.lineWidth ?? 1.5}
+                    thicknessOptions={[1, 1.5, 2, 3, 4]}
+                    onThicknessChange={(w) => set({ lineWidth: w === 1.5 ? undefined : w })}
+                    aria-label="Couleur du haut de la ligne"
+                    title="Haut"
+                  />
+                  <ColorPicker value={chartStyle.lineBottomColor ?? lineColor} onChange={(c) => set({ lineBottomColor: c })} onReset={() => set({ lineBottomColor: styleDefaults.lineBottomColor })} aria-label="Couleur du bas de la ligne" title="Bas" />
                 </>
-              ) : null}
+              ) : (
+                <ColorPicker
+                  value={lineColor}
+                  onChange={(c) => set({ lineColor: c })}
+                  onReset={() => set({ lineColor: styleDefaults.lineColor })}
+                  thickness={chartStyle.lineWidth ?? 1.5}
+                  thicknessOptions={[1, 1.5, 2, 3, 4]}
+                  onThicknessChange={(w) => set({ lineWidth: w === 1.5 ? undefined : w })}
+                  aria-label="Couleur de la ligne de clôture"
+                />
+              )}
             </Row>
             <Row illus="lineFill" label="Remplissage sous la courbe" hint={fill ? undefined : "Une simple ligne, sans aire"}>
               <Toggle checked={fill} onChange={() => set({ lineFill: fill ? undefined : true })} ariaLabel="Remplissage sous la ligne de clôture" />
@@ -1214,11 +1229,11 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
               />
               {gradient ? (
                 <>
-                  <ColorPicker value={chartStyle.lineFillTopColor ?? withAlpha(lineColor, 0.35)} onChange={(c) => set({ lineFillTopColor: c })} disabled={!fill} aria-label="Couleur du haut du dégradé de la ligne" title="Haut" />
-                  <ColorPicker value={chartStyle.lineFillBottomColor ?? withAlpha(lineColor, 0)} onChange={(c) => set({ lineFillBottomColor: c })} disabled={!fill} aria-label="Couleur du bas du dégradé de la ligne" title="Bas" />
+                  <ColorPicker value={chartStyle.lineFillTopColor ?? withAlpha(lineColor, 0.35)} onChange={(c) => set({ lineFillTopColor: c })} onReset={() => set({ lineFillTopColor: styleDefaults.lineFillTopColor })} disabled={!fill} aria-label="Couleur du haut du dégradé de la ligne" title="Haut" />
+                  <ColorPicker value={chartStyle.lineFillBottomColor ?? withAlpha(lineColor, 0)} onChange={(c) => set({ lineFillBottomColor: c })} onReset={() => set({ lineFillBottomColor: styleDefaults.lineFillBottomColor })} disabled={!fill} aria-label="Couleur du bas du dégradé de la ligne" title="Bas" />
                 </>
               ) : (
-                <ColorPicker value={chartStyle.lineFillColor ?? withAlpha(lineColor, 0.08)} onChange={(c) => set({ lineFillColor: c })} disabled={!fill} aria-label="Couleur du remplissage de la ligne" />
+                <ColorPicker value={chartStyle.lineFillColor ?? withAlpha(lineColor, 0.08)} onChange={(c) => set({ lineFillColor: c })} onReset={() => set({ lineFillColor: styleDefaults.lineFillColor })} disabled={!fill} aria-label="Couleur du remplissage de la ligne" />
               )}
             </Row>
           </>

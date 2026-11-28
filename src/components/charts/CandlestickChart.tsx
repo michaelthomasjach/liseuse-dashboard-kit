@@ -1,4 +1,5 @@
 import { ThemedColorContext } from "../forms/themedColor";
+import { ChartStyleDefaultsContext } from "./candlestick/chartStyle";
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ChartTemplateSnapshot } from "./candlestick/interfaces/ChartTemplate.interface";
 import { createPortal } from "react-dom";
@@ -183,6 +184,9 @@ export function CandlestickChart(props: CandlestickChartProps) {
   );
 }
 
+/** Pas de valeurs par défaut propres à l'application : « Réinitialiser » revient au thème. */
+const NO_STYLE_DEFAULTS = {};
+
 function CandlestickChartBody({
   data,
   width,
@@ -233,6 +237,7 @@ function CandlestickChartBody({
   YAutoScaling = true,
   onYAutoScalingChange,
   defaultAppearance,
+  chartStyleDefaults,
   onAppearanceChange,
   defaultDrawingStyles,
   onDrawingStylesChange,
@@ -2732,6 +2737,7 @@ function CandlestickChartBody({
       {/* Boutons « ? » des indicateurs : page d'aide de l'application, sinon fenêtre intégrée. */}
       {/* Sélecteurs de couleur du graphique : choix « Identique / Jour et nuit / Auto », mode affiché connu. */}
       <ThemedColorContext.Provider value={themedColorContext}>
+      <ChartStyleDefaultsContext.Provider value={chartStyleDefaults ?? NO_STYLE_DEFAULTS}>
       <IndicatorHelpProvider onOpenIndicatorHelp={onOpenIndicatorHelp}>
       <div ref={mainRef} className="lq-chart__main">
       {showHeader && !seasonalityOpen && (
@@ -3596,6 +3602,7 @@ function CandlestickChartBody({
         return aiPortalTarget && aiView === "docked" ? createPortal(aiHost, aiPortalTarget) : aiHost;
       })()}
       </IndicatorHelpProvider>
+      </ChartStyleDefaultsContext.Provider>
       </ThemedColorContext.Provider>
     </div>
   );

@@ -399,6 +399,9 @@ export interface CandlestickChartProps {
    *  (lus au montage), et chaque changement fait dans les paramètres du graphique, pour les
    *  enregistrer (par compte, par exemple). */
   defaultAppearance?: import("../hooks/useChartAppearance").ChartAppearanceSettings;
+  /** Valeurs par défaut des réglages de l'application (toile, couleurs…) : « Réinitialiser » d'un sélecteur de couleur
+   *  des paramètres y revient. Absent : la couleur du thème. */
+  chartStyleDefaults?: Partial<import("../chartStyle").ChartStyleSettings>;
   onAppearanceChange?: (settings: import("../hooks/useChartAppearance").ChartAppearanceSettings) => void;
   /** Derniers styles des dessins, par outil (clé : `lineType` du dessin, « trendline » pour une ligne libre) : quand
    *  l'utilisateur change la couleur, l'épaisseur, le trait, le remplissage… d'un dessin, le prochain dessin du même

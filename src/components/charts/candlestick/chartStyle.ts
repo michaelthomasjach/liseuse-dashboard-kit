@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { createContext, type CSSProperties } from "react";
 import { blendColors, resolveThemedColor, resolveThemedDeep, surfaceModeOf, type ThemedColorMode } from "../../forms/themedColor";
 
 /** Style d'un trait réglable (grille, réticule, ligne du dernier prix). */
@@ -537,6 +537,10 @@ export function lineDash(style: ChartLineStyle | undefined, fallback: number[]):
   if (style === "dotted") return [1.5, 3];
   return fallback;
 }
+
+/** Valeurs par défaut des réglages du graphique propres à l'application (`CandlestickChartProps.chartStyleDefaults`) :
+ *  « Réinitialiser » d'un sélecteur de couleur des paramètres y revient (sinon, au rendu du thème). */
+export const ChartStyleDefaultsContext = createContext<Partial<ChartStyleSettings>>({});
 
 /** Fond par défaut de chaque mode, sous une toile translucide (le site derrière). */
 const MODE_BACKDROP: Record<ChartColorMode, string> = { light: "#ffffff", dark: "#0f1420" };

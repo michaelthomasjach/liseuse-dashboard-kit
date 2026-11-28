@@ -70,7 +70,7 @@ export function DaySeparatorsModal({
         <div className="lq-chart__edit-drawing-row">
           <div className="lq-field">
             <label className="lq-field__label">Couleur du texte</label>
-            <ColorPicker className="lq-chart__color-input" value={settings.textColor} onChange={(color) => set({ textColor: color })} />
+            <ColorPicker className="lq-chart__color-input" value={settings.textColor} onChange={(color) => set({ textColor: color })} onReset={() => set({ textColor: DEFAULT_DAY_SEPARATORS.textColor })} />
           </div>
           <InputNumber label="Taille du texte" min={8} max={32} step={1} value={settings.fontSize} onChange={(v) => v !== "" && set({ fontSize: v })} />
         </div>
@@ -79,7 +79,7 @@ export function DaySeparatorsModal({
         <div className="lq-chart__edit-drawing-row">
           <div className="lq-field">
             <label className="lq-field__label">Couleur des traits</label>
-            <ColorPicker className="lq-chart__color-input" value={settings.lineColor} onChange={(color) => set({ lineColor: color })} />
+            <ColorPicker className="lq-chart__color-input" value={settings.lineColor} onChange={(color) => set({ lineColor: color })} onReset={() => set({ lineColor: DEFAULT_DAY_SEPARATORS.lineColor })} />
           </div>
           <Select
             label="Style"

@@ -549,7 +549,7 @@ const METHOD_NOTES: Record<IndicatorProjectionMethod, string> = {
 interface TraceRowProps {
   name: ReactNode;
   visible?: { checked: boolean; onChange: (checked: boolean) => void };
-  colors: { label?: string; value: string; onChange: (color: string) => void; thickness?: number; onThicknessChange?: (width: number) => void }[];
+  colors: { label?: string; value: string; onChange: (color: string) => void; onReset?: () => void; thickness?: number; onThicknessChange?: (width: number) => void }[];
   /** Une ligne secondaire, en retrait (un réglage propre à cet élément : croisement…). */
   sub?: boolean;
   children?: ReactNode;
@@ -574,6 +574,7 @@ function TraceRow({ name, visible, colors, sub = false, children }: TraceRowProp
               className="lq-chart__color-input"
               value={c.value}
               onChange={c.onChange}
+              {...(c.onReset ? { onReset: c.onReset } : {})}
               thickness={c.thickness}
               onThicknessChange={c.onThicknessChange}
               aria-label={`Couleur ${c.label ? `${c.label.toLowerCase()} ` : ""}de ${text}`} />
@@ -666,33 +667,33 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
     trace.push(<TraceRow key="ce" name="Stop" visible={shown} colors={pair("chandelierUpColor", "chandelierDownColor")} />);
   } else if (d.kind === "srBounce") {
     trace.push(
-      <TraceRow key="srbs" name="Supports (zones sous le prix)" visible={shown} colors={[{ value: d.srbSupportColor ?? SRB.supportColor, onChange: (c) => set({ srbSupportColor: c }) }]} />,
-      <TraceRow key="srbr" name="Résistances (zones au-dessus du prix)" colors={[{ value: d.srbResistanceColor ?? SRB.resistanceColor, onChange: (c) => set({ srbResistanceColor: c }) }]} />
+      <TraceRow key="srbs" name="Supports (zones sous le prix)" visible={shown} colors={[{ value: d.srbSupportColor ?? SRB.supportColor, onChange: (c) => set({ srbSupportColor: c }), onReset: () => set({ srbSupportColor: undefined }) }]} />,
+      <TraceRow key="srbr" name="Résistances (zones au-dessus du prix)" colors={[{ value: d.srbResistanceColor ?? SRB.resistanceColor, onChange: (c) => set({ srbResistanceColor: c }), onReset: () => set({ srbResistanceColor: undefined }) }]} />
     );
   } else if (d.kind === "rangeDetection") {
     trace.push(
-      <TraceRow key="rdc" name="Zones de range confirmé" visible={shown} colors={[{ value: mainColor, onChange: (c) => set({ color: c }) }]} />,
+      <TraceRow key="rdc" name="Zones de range confirmé" visible={shown} colors={[{ value: mainColor, onChange: (c) => set({ color: c }), onReset: () => set({ color: undefined }) }]} />,
       <TraceRow
         key="rdp"
         name="Zones de range probable (détection précoce)"
         visible={{ checked: d.rangeShowProbable ?? RD.showProbable, onChange: (checked) => set({ rangeShowProbable: checked }) }}
-        colors={[{ value: d.rangeProbableColor ?? RD.probableColor, onChange: (c) => set({ rangeProbableColor: c }) }]}
+        colors={[{ value: d.rangeProbableColor ?? RD.probableColor, onChange: (c) => set({ rangeProbableColor: c }), onReset: () => set({ rangeProbableColor: undefined }) }]}
       />
     );
   } else if (d.kind === "expectedVolatility") {
     trace.push(
-      <TraceRow key="evatr" name="ATR (ouverture ± ATR)" visible={shown} colors={[{ value: mainColor, onChange: (c) => set({ color: c }) }]} />,
+      <TraceRow key="evatr" name="ATR (ouverture ± ATR)" visible={shown} colors={[{ value: mainColor, onChange: (c) => set({ color: c }), onReset: () => set({ color: undefined }) }]} />,
       <TraceRow
         key="evsma"
         name="SMA de l'ATR"
         visible={{ checked: d.expVolShowSma ?? EV.showSma, onChange: (checked) => set({ expVolShowSma: checked }) }}
-        colors={[{ value: d.expVolSmaColor ?? EV.smaColor, onChange: (c) => set({ expVolSmaColor: c }) }]}
+        colors={[{ value: d.expVolSmaColor ?? EV.smaColor, onChange: (c) => set({ expVolSmaColor: c }), onReset: () => set({ expVolSmaColor: undefined }) }]}
       />,
       <TraceRow
         key="evmed"
         name="Ligne médiane (ouverture de la période)"
         visible={{ checked: d.expVolShowMedian ?? EV.showMedian, onChange: (checked) => set({ expVolShowMedian: checked }) }}
-        colors={[{ value: d.expVolMedianColor ?? EV.medianColor, onChange: (c) => set({ expVolMedianColor: c }) }]}
+        colors={[{ value: d.expVolMedianColor ?? EV.medianColor, onChange: (c) => set({ expVolMedianColor: c }), onReset: () => set({ expVolMedianColor: undefined }) }]}
       />
     );
   } else if (d.kind === "donchian") {
@@ -725,7 +726,7 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
     );
   } else {
     // Une couleur pour tout l'indicateur. ADX la lit pour sa propre ligne (+DI/-DI ont leur paire ci-dessous).
-    trace.push(<TraceRow key="main" name={d.kind === "macd" ? "MACD" : d.kind === "adx" ? "ADX" : label} visible={shown} colors={[{ value: mainColor, onChange: (c) => set({ color: c }), thickness: d.lineWidth, onThicknessChange: (w) => set({ lineWidth: w }) }]} />);
+    trace.push(<TraceRow key="main" name={d.kind === "macd" ? "MACD" : d.kind === "adx" ? "ADX" : label} visible={shown} colors={[{ value: mainColor, onChange: (c) => set({ color: c }), onReset: () => set({ color: undefined }), thickness: d.lineWidth, onThicknessChange: (w) => set({ lineWidth: w }) }]} />);
   }
   if (d.kind === "macd") {
     trace.push(
@@ -736,7 +737,7 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
         colors={[
           {
             value: d.macdSignalColor ?? MACD_SIGNAL_COLOR,
-            onChange: (c) => set({ macdSignalColor: c }),
+            onChange: (c) => set({ macdSignalColor: c }), onReset: () => set({ macdSignalColor: undefined }),
             thickness: d.macdSignalWidth ?? 1,
             onThicknessChange: (w) => set({ macdSignalWidth: w }),
           },
@@ -756,8 +757,8 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
         colors={
           d.macdCrossColors
             ? [
-                { label: "Au-dessus", value: d.macdLineAboveColor ?? UP, onChange: (c) => set({ macdLineAboveColor: c }) },
-                { label: "En dessous", value: d.macdLineBelowColor ?? DOWN, onChange: (c) => set({ macdLineBelowColor: c }) },
+                { label: "Au-dessus", value: d.macdLineAboveColor ?? UP, onChange: (c) => set({ macdLineAboveColor: c }), onReset: () => set({ macdLineAboveColor: undefined }) },
+                { label: "En dessous", value: d.macdLineBelowColor ?? DOWN, onChange: (c) => set({ macdLineBelowColor: c }), onReset: () => set({ macdLineBelowColor: undefined }) },
               ]
             : []
         }
@@ -770,18 +771,18 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
       <TraceRow
         key="rsi-upper"
         name={`Seuil de surachat (${d.rsiOverbought ?? 70})`}
-        colors={[{ value: d.rsiUpperColor ?? RSI_LEVEL_COLOR, onChange: (c) => set({ rsiUpperColor: c }) }]}
+        colors={[{ value: d.rsiUpperColor ?? RSI_LEVEL_COLOR, onChange: (c) => set({ rsiUpperColor: c }), onReset: () => set({ rsiUpperColor: undefined }) }]}
       />,
       <TraceRow
         key="rsi-lower"
         name={`Seuil de survente (${d.rsiOversold ?? 30})`}
-        colors={[{ value: d.rsiLowerColor ?? RSI_LEVEL_COLOR, onChange: (c) => set({ rsiLowerColor: c }) }]}
+        colors={[{ value: d.rsiLowerColor ?? RSI_LEVEL_COLOR, onChange: (c) => set({ rsiLowerColor: c }), onReset: () => set({ rsiLowerColor: undefined }) }]}
       />,
       <TraceRow
         key="rsi-middle"
         name="Ligne médiane (50)"
         visible={{ checked: d.rsiShowMiddle !== false, onChange: (checked) => set({ rsiShowMiddle: checked ? undefined : false }) }}
-        colors={[{ value: d.rsiMiddleColor ?? RSI_MIDDLE_COLOR, onChange: (c) => set({ rsiMiddleColor: c }) }]}
+        colors={[{ value: d.rsiMiddleColor ?? RSI_MIDDLE_COLOR, onChange: (c) => set({ rsiMiddleColor: c }), onReset: () => set({ rsiMiddleColor: undefined }) }]}
       />
     );
   }
@@ -793,8 +794,8 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
         key="div"
         name="Divergences"
         colors={[
-          { label: "Haussière", value: d.divergenceBullColor ?? DIV.bullColor, onChange: (c) => set({ divergenceBullColor: c }), ...thickness },
-          { label: "Baissière", value: d.divergenceBearColor ?? DIV.bearColor, onChange: (c) => set({ divergenceBearColor: c }), ...thickness },
+          { label: "Haussière", value: d.divergenceBullColor ?? DIV.bullColor, onChange: (c) => set({ divergenceBullColor: c }), onReset: () => set({ divergenceBullColor: undefined }), ...thickness },
+          { label: "Baissière", value: d.divergenceBearColor ?? DIV.bearColor, onChange: (c) => set({ divergenceBearColor: c }), onReset: () => set({ divergenceBearColor: undefined }), ...thickness },
         ]}
       />
     );
@@ -805,8 +806,8 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
         key="di"
         name="+DI / −DI"
         colors={[
-          { label: "+DI", value: d.adxPlusColor ?? UP, onChange: (c) => set({ adxPlusColor: c }) },
-          { label: "−DI", value: d.adxMinusColor ?? DOWN, onChange: (c) => set({ adxMinusColor: c }) },
+          { label: "+DI", value: d.adxPlusColor ?? UP, onChange: (c) => set({ adxPlusColor: c }), onReset: () => set({ adxPlusColor: undefined }) },
+          { label: "−DI", value: d.adxMinusColor ?? DOWN, onChange: (c) => set({ adxMinusColor: c }), onReset: () => set({ adxMinusColor: undefined }) },
         ]}
       />
     );

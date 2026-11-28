@@ -57,6 +57,13 @@ export interface DrawingEditModalProps {
  *  three tabs (Coordonnées/Texte/Style, or Style alone for a symbolOverlay, which has no
  *  meaningful coordinates or text label of its own). Purely a `draft` editor: every field reads
  *  and writes `draft` directly, nothing here touches `drawings` itself until `saveEditModal`. */
+/** Le dessin sans une de ses couleurs : il reprend celle par défaut (bouton « Réinitialiser » du sélecteur). */
+function withoutKey<T extends object>(obj: T, key: keyof T): T {
+  const out = { ...obj };
+  delete out[key];
+  return out;
+}
+
 export function DrawingEditModal({
   draft,
   timeframeLabelOf,
@@ -335,7 +342,7 @@ export function DrawingEditModal({
               <ColorPicker
                 className="lq-chart__color-input"
                 value={draft.textColor ?? draft.color ?? defaultColor}
-                onChange={(color) => setDraft({ ...draft, textColor: color })}
+                onChange={(color) => setDraft({ ...draft, textColor: color })} onReset={() => setDraft(withoutKey(draft, "textColor"))}
               />
             </div>
           </div>
@@ -427,7 +434,7 @@ export function DrawingEditModal({
               <ColorPicker
                 className="lq-chart__color-input"
                 value={draft.color ?? defaultColor}
-                onChange={(color) => setDraft({ ...draft, color })}
+                onChange={(color) => setDraft({ ...draft, color })} onReset={() => setDraft(withoutKey(draft, "color"))}
                 thickness={draft.strokeWidth ?? 1.5}
                 onThicknessChange={(strokeWidth) => setDraft({ ...draft, strokeWidth })}
               />
@@ -508,7 +515,7 @@ export function DrawingEditModal({
                 <ColorPicker
                   className="lq-chart__color-input"
                   value={draft.targetFillColor ?? PALE_GREEN}
-                  onChange={(color) => setDraft({ ...draft, targetFillColor: color })}
+                  onChange={(color) => setDraft({ ...draft, targetFillColor: color })} onReset={() => setDraft(withoutKey(draft, "targetFillColor"))}
                 />
               </div>
               <div className="lq-field">
@@ -516,7 +523,7 @@ export function DrawingEditModal({
                 <ColorPicker
                   className="lq-chart__color-input"
                   value={draft.stopFillColor ?? PALE_RED}
-                  onChange={(color) => setDraft({ ...draft, stopFillColor: color })}
+                  onChange={(color) => setDraft({ ...draft, stopFillColor: color })} onReset={() => setDraft(withoutKey(draft, "stopFillColor"))}
                 />
               </div>
             </div>
@@ -534,7 +541,7 @@ export function DrawingEditModal({
                   <ColorPicker
                     className="lq-chart__color-input"
                     value={draft.positiveColor ?? PALE_GREEN}
-                    onChange={(color) => setDraft({ ...draft, positiveColor: color })}
+                    onChange={(color) => setDraft({ ...draft, positiveColor: color })} onReset={() => setDraft(withoutKey(draft, "positiveColor"))}
                   />
                 </div>
                 <div className="lq-field">
@@ -542,7 +549,7 @@ export function DrawingEditModal({
                   <ColorPicker
                     className="lq-chart__color-input"
                     value={draft.neutralColor ?? PALE_NEUTRAL}
-                    onChange={(color) => setDraft({ ...draft, neutralColor: color })}
+                    onChange={(color) => setDraft({ ...draft, neutralColor: color })} onReset={() => setDraft(withoutKey(draft, "neutralColor"))}
                   />
                 </div>
                 <div className="lq-field">
@@ -550,7 +557,7 @@ export function DrawingEditModal({
                   <ColorPicker
                     className="lq-chart__color-input"
                     value={draft.negativeColor ?? PALE_RED}
-                    onChange={(color) => setDraft({ ...draft, negativeColor: color })}
+                    onChange={(color) => setDraft({ ...draft, negativeColor: color })} onReset={() => setDraft(withoutKey(draft, "negativeColor"))}
                   />
                 </div>
               </div>
@@ -621,7 +628,7 @@ export function DrawingEditModal({
                     <ColorPicker
                       className="lq-chart__color-input"
                       value={draft.overlayUpColor ?? defaultUpColor ?? "#26a69a"}
-                      onChange={(color) => setDraft({ ...draft, overlayUpColor: color })}
+                      onChange={(color) => setDraft({ ...draft, overlayUpColor: color })} onReset={() => setDraft(withoutKey(draft, "overlayUpColor"))}
                     />
                   </div>
                   <div className="lq-field">
@@ -629,7 +636,7 @@ export function DrawingEditModal({
                     <ColorPicker
                       className="lq-chart__color-input"
                       value={draft.overlayDownColor ?? defaultDownColor ?? "#ef5350"}
-                      onChange={(color) => setDraft({ ...draft, overlayDownColor: color })}
+                      onChange={(color) => setDraft({ ...draft, overlayDownColor: color })} onReset={() => setDraft(withoutKey(draft, "overlayDownColor"))}
                     />
                   </div>
                 </div>
